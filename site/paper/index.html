@@ -2187,6 +2187,8 @@ function tileSvgs() {
       var key = c.classList.contains("bd") ? "boulder" : c.classList.contains("hero") ? "hero" : "hole";
       c.parentNode.insertBefore(svgImg(key, +c.getAttribute("cx") - 15, +c.getAttribute("cy") - 15, "tl tl-obj"), c);
     });
+    // keep move arrows and the red "blocked" crosses on top of the tile pictures
+    $$(".arr-no, .arr-ok, .xmark, .xmark2", svg).forEach(function (a) { a.parentNode.appendChild(a); });
   });
 }
 
