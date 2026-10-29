@@ -1,0 +1,529 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>NetHack EXPTIME Attempt</title>
+<meta name="description" content="Work in progress: is generalized NetHack EXPTIME-hard when the dice play against you? Status, three interactive plays, and the draft proofs. The main result is a conjecture.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&family=Spectral:ital,wght@0,400;0,600;1,400&family=VT323&display=swap">
+<link rel="stylesheet" href="style.css?v=20261029c">
+<script>(function(){var r=document.documentElement,d=null,v=null;r.classList.add('js');try{d=localStorage.getItem('exptime-depth');v=localStorage.getItem('exptime-view');}catch(e){}if(d!=='0'&&d!=='1'&&d!=='2'&&d!=='3'){d='0';}r.setAttribute('data-depth',d);if(v==='tiles'||(v===null&&d==='0')){r.classList.add('tilemode');}})();</script>
+<style>
+/* ---- page-specific additions (style.css is shared and not edited) ---- */
+@media screen {
+  html.js[data-depth="0"] main.sheet > .keep { display: block !important; }
+  html.js[data-depth="0"] main.sheet [data-dm] { display: none !important; }
+  html.js:not([data-depth="0"]) .d0only { display: none; }
+}
+html:not(.js) .d0only { display: none; }
+.wip { border: 2px dashed var(--warn); background: var(--sheet); border-radius: 4px; padding: .6rem .9rem; margin: 0 0 1.4rem; font-size: .95rem; }
+.wip b { color: var(--warn); }
+.play { border: 1px solid var(--rule); border-top: 4px solid var(--accent); background: var(--sheet); border-radius: 4px; padding: .2rem 1rem 1rem; margin: 2.4rem 0; max-width: none !important; }
+.play > h2 { border: 0; margin-top: .9rem; padding-top: 0; }
+.play .pk { font: 500 .74rem/1.3 var(--f-mono); text-transform: uppercase; letter-spacing: .08em; color: var(--accent); margin: .8rem 0 0; }
+.play > p, .play > ul, .play > div.xpl, .play > details { max-width: 46rem; }
+.btn { font: 600 .86rem/1.2 var(--f-body); color: var(--sheet); background: var(--accent); border: 1px solid var(--accent); border-radius: 3px; padding: .45rem .7rem; cursor: pointer; }
+.btn:hover:not(:disabled) { filter: brightness(1.1); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btn.ghost { color: var(--accent); background: transparent; }
+.btn.warn { background: var(--warn); border-color: var(--warn); color: var(--sheet); }
+.btn.sm { font-size: .78rem; padding: .32rem .55rem; }
+.btn:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.row { display: flex; flex-wrap: wrap; gap: .45rem .6rem; align-items: center; margin: .6rem 0; }
+.row .lbl { font: 500 .72rem/1 var(--f-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.muted { color: var(--muted); }
+.good { color: var(--good); } .bad { color: var(--bad); }
+.tty { font-family: var(--f-tty); font-size: 1.15em; }
+/* grid renderer */
+.gx { display: grid; grid-template-columns: repeat(var(--cols), var(--cs, 30px)); grid-auto-rows: var(--cs, 30px); width: max-content; max-width: 100%; margin: .6rem 0; background: var(--tty-bg); border-radius: 4px; padding: 4px; user-select: none; touch-action: none; }
+.gx .c { display: flex; align-items: center; justify-content: center; font: 400 calc(var(--cs, 30px) * .82)/1 var(--f-tty); color: var(--tty-fg); position: relative; background-size: 100% 100%; image-rendering: pixelated; }
+.gx .c.w { color: var(--tty-wall); }
+.gx .c.bd { color: var(--tty-boulder); }
+.gx .c.hero { color: var(--tty-hero); font-weight: 700; }
+.gx .c.trap { color: #e070e0; }
+.gx .c.port { color: var(--tty-goal); }
+.gx .c.ov { color: var(--tty-dim); }
+.gx .c.zone { box-shadow: inset 0 0 0 2px rgba(224,112,224,.55); }
+.gx .c.land { box-shadow: inset 0 0 0 3px var(--tty-goal); }
+.gx.tl .c b { position: absolute; right: 1px; bottom: 0; font: 700 calc(var(--cs, 30px) * .45)/1 var(--f-mono); color: #fff; text-shadow: 0 0 2px #000, 0 0 2px #000; }
+.gx.labg .c { cursor: crosshair; }
+.gx.labg.walking .c { cursor: pointer; }
+@media (max-width: 520px) { .gx { --cs: 26px; } .gx.p1g { --cs: 24px; } }
+@media (max-width: 380px) { .gx { --cs: 23px; } .gx.p1g { --cs: 22px; } }
+/* play 1 */
+.p1-wrap { display: grid; grid-template-columns: minmax(0, auto) minmax(0, 1fr); gap: .4rem 1.2rem; align-items: start; }
+@media (max-width: 760px) { .p1-wrap { grid-template-columns: minmax(0, 1fr); } }
+.p1-log { font-size: .92rem; min-height: 6.5rem; }
+.p1-log p { margin: .15rem 0; } .p1-log p:first-child { font-weight: 700; }
+.p1-ask { font-weight: 700; width: 100%; }
+.p1-note { border-left: 3px solid var(--warn); background: var(--paper); padding: .45rem .7rem; border-radius: 0 4px 4px 0; font-size: .94rem; }
+.p1-cap { display: flex; justify-content: space-between; max-width: 24rem; font-size: .8rem; color: var(--muted); }
+/* play 2 */
+.g6f { display: flex; flex-wrap: wrap; gap: .35rem .3rem; align-items: center; font: 500 1rem/1.4 var(--f-mono); margin: .6rem 0; }
+.g6f .cl { border: 1px solid var(--rule); border-radius: 3px; padding: .1rem .35rem; background: var(--paper); }
+.g6f .cl.sat { border-color: var(--good); }
+.g6f .li.on { color: var(--good); font-weight: 700; }
+.g6f .li.y { font-style: italic; }
+.g6f .and { color: var(--muted); }
+.g6f .fv { margin-left: .5rem; font: 700 .82rem/1.3 var(--f-body); padding: .2rem .5rem; border-radius: 3px; }
+.g6f .fv.t { background: var(--good); color: var(--sheet); } .g6f .fv.f { border: 1px solid var(--bad); color: var(--bad); }
+.vg { display: flex; flex-wrap: wrap; gap: .3rem; align-items: center; margin: .25rem 0; }
+.vl { font-size: .86rem; color: var(--muted); min-width: 8.5rem; }
+.vb { font: 500 .86rem/1.3 var(--f-mono); padding: .15rem .45rem; border-radius: 3px; border: 1px solid var(--rule); }
+.vb.on { border-color: var(--accent); color: var(--accent); font-weight: 700; }
+.rd { font-size: .82rem; color: var(--muted); margin-left: .3rem; }
+.g6log { font-size: .92rem; min-height: 5rem; } .g6log p { margin: .12rem 0; } .g6log p:first-child { font-weight: 700; }
+.g6s { font-size: .9rem; background: var(--paper); border-radius: 4px; padding: .45rem .7rem; }
+/* lab */
+.lab-top { display: grid; grid-template-columns: minmax(0, auto) minmax(0, 1fr); gap: .6rem 1.4rem; align-items: start; }
+@media (max-width: 760px) { .lab-top { grid-template-columns: minmax(0, 1fr); } }
+#lab-text { width: 100%; max-width: 16rem; height: 9.5rem; font: 500 .9rem/1.2 var(--f-mono); background: var(--code-bg); color: var(--ink); border: 1px solid var(--rule); border-radius: 3px; padding: .4rem; }
+.labx select, .labx input[type=text] { font: 500 .86rem/1.3 var(--f-body); background: var(--sheet); color: var(--ink); border: 1px solid var(--rule); border-radius: 3px; padding: .3rem .4rem; max-width: 100%; }
+.labx input[type=text] { width: 9rem; font-family: var(--f-mono); }
+.challenge { border: 2px solid var(--accent); border-radius: 4px; padding: .6rem .9rem; background: var(--paper); margin: .8rem 0; }
+.challenge b { color: var(--accent); }
+.rt { font-size: .86rem; } .rt td { vertical-align: middle; }
+pre.mini { margin: 0; padding: .2rem .35rem; font-size: .74rem; line-height: 1.15; background: var(--code-bg); }
+.verd { font-size: .92rem; } .verdict { font-weight: 700; font-size: 1rem; }
+.lab-out { margin-top: .6rem; }
+/* gallery */
+.gal { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: .8rem; margin: 1rem 0; }
+.gcard { border: 1px solid var(--rule); border-radius: 4px; background: var(--sheet); padding: .6rem .8rem .8rem; min-width: 0; }
+.gcard h3 { margin: .2rem 0 .3rem; font-size: 1.08rem; }
+.gcard p { font-size: .92rem; margin: .35rem 0; }
+.gcard.ph { border-style: dashed; background: var(--paper); }
+.stb { display: flex; flex-wrap: wrap; gap: .3rem; align-items: center; }
+.stn { font-size: .78rem; color: var(--muted); margin-left: .3rem; }
+.stc { font-size: .88rem; min-height: 3.6em; color: var(--ink); }
+/* reduction diagram */
+.rdg svg { display: block; width: 100%; max-width: 30rem; height: auto; margin: 0 auto; }
+.rd-b { fill: var(--sheet); stroke: var(--rule); stroke-width: 1.5; }
+.rd-p { fill: var(--map-p); stroke: var(--accent); stroke-width: 1.5; }
+.rd-n { fill: var(--map-k); stroke: var(--kclr); stroke-width: 1.5; }
+.rd-c { fill: var(--map-m); stroke: var(--good); stroke-width: 1.5; }
+.rd-g { fill: #f2cf4a; stroke: #9c7c0c; stroke-width: 1.5; }
+.rd-t { fill: var(--ink); font: 600 11.5px var(--f-body); text-anchor: middle; }
+.rd-s { fill: var(--muted); font: 10px var(--f-body); text-anchor: middle; }
+.rd-a { stroke: var(--muted); stroke-width: 1.5; fill: none; marker-end: url(#rd-ar); }
+.rd-an { stroke: var(--kclr); stroke-width: 1.5; fill: none; marker-end: url(#rd-arn); stroke-dasharray: 4 3; }
+.rd-head { fill: var(--muted); } .rd-headn { fill: var(--kclr); }
+.cf-t { fill: #e070e0; } .cf-l { fill: var(--ink); font: 700 15px var(--f-mono); text-anchor: middle; }
+.cf-arr { stroke: var(--kclr); stroke-width: 2.4; fill: none; marker-end: url(#cf-ah); }
+.cf-ah { fill: var(--kclr); }
+.cf-txt { fill: var(--ink); font: 13px var(--f-body); text-anchor: middle; }
+.st-tbl td:nth-child(2) { white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="bar needs-js" id="bar" role="region" aria-label="Reading controls">
+<div class="bar-in">
+<div class="bar-grp"><span class="bar-l" id="depth-l">Reading depth</span>
+<div class="seg" role="group" aria-labelledby="depth-l" id="g-depth"><button type="button" data-d="0" aria-pressed="false">For everyone</button><button type="button" data-d="1" aria-pressed="false">Overview</button><button type="button" data-d="2" aria-pressed="true">Explained</button><button type="button" data-d="3" aria-pressed="false">Full</button></div></div>
+<div class="bar-grp"><span class="bar-l" id="view-l">Maps</span>
+<div class="seg" role="group" aria-labelledby="view-l" id="view-mode"><button type="button" data-v="text" aria-pressed="true">Text</button><button type="button" data-v="tiles" aria-pressed="false">Tiles</button></div></div>
+<button type="button" class="pbtn" id="proofs-all" hidden>Open all proofs</button>
+</div>
+</div>
+<div class="wrap">
+<nav class="toc" aria-label="Contents">
+<details class="toc-d" open>
+<summary class="toc-h">Contents</summary>
+<ol>
+<li><a href="#claim">1 The claim and the game</a></li>
+<li><a href="#play1">Play 1: Be the dungeon</a></li>
+<li><a href="#play2">Play 2: The formula game</a></li>
+<li><a href="#reduction">2 How the reduction works</a></li>
+<li><a href="#status">3 What is proven, what is open</a></li>
+<li><a href="#gallery">4 Gadget gallery</a></li>
+<li><a href="#play3">Play 3: Gadget lab</a></li>
+<li><a href="#full">5 Definitions and proofs</a></li>
+<li><a href="#refs">References</a></li>
+<li><a href="index.html">&larr; Back to the paper</a></li>
+</ol>
+</details>
+</nav>
+
+<main class="sheet" id="top">
+<header class="title">
+<div class="kicker">Work in progress · conjecture, not a result · 29 October 2026</div>
+<h1>Is NetHack EXPTIME-hard when the dice play against you?</h1>
+<p class="byline">Ivan Miziuk · California State University, Chico · companion to <a href="index.html">the PSPACE/NP paper</a></p>
+</header>
+
+<p class="wip keep"><b>Work in progress.</b> This page follows a proof attempt that is still running. The headline statement (&ldquo;this NetHack language is EXPTIME-complete&rdquo;) is a <b>conjecture</b>: one building block, a reusable boulder gadget that cannot be broken, does not exist yet. Everything below is labelled with how sure we are.</p>
+
+<p class="pub-link needs-js" id="pub-link"><span>New to complexity?</span> <button type="button" class="pb-go" data-goto="0">Read the For-everyone version</button></p>
+
+<section class="pub" id="public" aria-labelledby="pub-h">
+<p class="pb-kick">For everyone · about 8 minutes · no math needed</p>
+<h2 id="pub-h">What if the dungeon fights back?</h2>
+<p class="pb-lead">Our <a href="index.html">first paper</a> asked how hard it is to win a NetHack level if luck is always on your side. This page asks the opposite: what if every roll of the dice goes against you?</p>
+<p class="pb-honest"><b>Honest label:</b> this is unfinished research by a student. One part has been tested in the real game, some parts are careful arguments, and the main claim is still a guess we are trying to prove.</p>
+
+<h3>1. Two kinds of &ldquo;hard&rdquo;</h3>
+<p>Computer scientists sort problems by how much work a computer needs as the problem gets bigger. Some problems are quick (&ldquo;polynomial time&rdquo;). Some need <b>exponential time</b>: add a few more pieces and the work doubles, again and again. Problems of that second kind are called <b>EXPTIME</b> problems.</p>
+<p>Here is something surprising. You may have heard of the famous open question &ldquo;P versus NP&rdquo;: nobody knows whether some puzzles really need a slow search. For EXPTIME there is <b>no such doubt</b>. Mathematicians proved decades ago that the hardest EXPTIME problems can never be solved quickly, by any program, ever. So if we show NetHack is &ldquo;EXPTIME-hard&rdquo;, we know for certain there is no fast general way to solve it.</p>
+
+<h3>2. Why you need an opponent</h3>
+<p>A puzzle you play alone, like a big Sokoban level, is hard but has a short kind of answer: a list of moves. Games against an opponent are different. In chess or Go on a huge board, your plan must answer every reply the other side could make, and that tree of &ldquo;if they do this, I do that&rdquo; can be exponentially large. The classic EXPTIME-hard problems are exactly such games: generalized chess, checkers and Go.</p>
+<p>NetHack has only one player. But it has dice. If we imagine the dice as an opponent who always picks the worst roll for you (and sees everything you see), we get a two-player game: <b>you against the dungeon</b>. Researchers call this reading &ldquo;R3&rdquo;. The question becomes: can you win <i>no matter what</i> the dice do?</p>
+
+<h3>3. The dungeon's move: a teleport coin</h3>
+<div class="pb-two">
+<figure class="fig pb-fig">
+<svg viewBox="0 0 300 185" role="img" aria-labelledby="cf-t1">
+<title id="cf-t1">A teleportation trap in the middle of a row with cells A and B on either side; the hero steps on the trap from below; arrows show that the dungeon sends the hero to A or to B.</title>
+<defs><marker id="cf-ah" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" class="cf-ah"/></marker></defs>
+<rect x="10" y="10" width="280" height="155" class="pb-wall"/>
+<g class="pb-floor"><rect x="40" y="40" width="40" height="40"/><rect x="130" y="40" width="40" height="40"/><rect x="220" y="40" width="40" height="40"/><rect x="130" y="80" width="40" height="75"/><rect x="40" y="80" width="40" height="75"/><rect x="220" y="80" width="40" height="75"/></g>
+<text x="60" y="66" class="cf-l">A</text><text x="240" y="66" class="cf-l">B</text>
+<path d="M140,50 L160,50 L150,72 Z" class="cf-t"/>
+<circle cx="150" cy="140" r="13" class="pb-hero"/><text x="150" y="145" class="pb-at">@</text>
+<path d="M150,124 V86" class="cf-arr" style="stroke:var(--accent)"/>
+<path d="M132,58 C110,30 95,30 84,52" class="cf-arr"/><path d="M168,58 C190,30 205,30 216,52" class="cf-arr"/>
+<text x="150" y="176" class="cf-txt">the dungeon decides: A or B</text>
+</svg>
+<figcaption>The &ldquo;coin&rdquo;: step on the trap and you land on A or B. You do not choose; the dungeon does.</figcaption>
+</figure>
+<div>
+<p>To give the dungeon a move, we use a real NetHack trap: the <b>teleportation trap</b>. Normally it throws you anywhere on the level. A built-in NetHack rule (used in the Wizard's Tower) can fence teleports into a small zone. Put a trap and exactly two free cells, A and B, inside such a zone, and every time you step on the trap you land on A or on B. That is a coin flip, and in our game the coin is the enemy.</p>
+<p>One snag: a careful hero sometimes &ldquo;escapes&rdquo; a trap they know about, and then nothing happens. A dungeon that can say &ldquo;nothing happens&rdquo; forever could stop you forever. So the hero wears <b>cursed fumble boots</b>, which make that escape impossible. We tested this in the real game 1,200 times: always A or B, never anything else.</p>
+</div>
+</div>
+
+<h3>4. The plan, and where it is stuck</h3>
+<p>The plan is to build, out of boulders and corridors, a NetHack level that plays a known hard opponent game (a formula game, Play 2 below). Most pieces are ready: the coin works, the bookkeeping proofs are written, a computer checker exists. The missing piece is a boulder <b>gadget</b> that works like a one-way door and <b>can be used again and again without ever jamming</b>. We have one that works if you check at the end that it never jammed; we have not found one that simply cannot jam, even after trying about 1.4 million layouts by computer. Maybe you can: try the Gadget lab at the bottom.</p>
+<p class="pb-jump"><a href="#play1">&#9654; Be the dungeon</a><a href="#play2">&#9654; Play the formula game</a><a href="#play3">&#9654; Try the Gadget lab</a></p>
+</section>
+
+<!-- ============================ 1 claim ============================ -->
+<section id="claim" class="lv">
+<div class="sec-head"><h2><span class="sn">1</span>The claim and the game</h2><div class="seg sm local" role="group" aria-label="Reading depth for section 1"><button type="button" data-d="1">Overview</button><button type="button" data-d="2">Explained</button><button type="button" data-d="3">Full</button></div></div>
+<p class="oneline" data-dm="1">Conjecture: the hunger-off NetHack language L<sub>OFF</sub><sup>W+C</sup> (boulders, Sokoban rules, plus one teleport-trap &ldquo;coin&rdquo; and cursed fumble boots) is EXPTIME-complete when every die roll is chosen by an adversary (R3). Membership is proved; hardness is proved for an abstract gadget game and transfers to NetHack once a reusable game-safe self-closing door (or diode + crossover) exists.</p>
+<div class="xpl" data-dm="2">
+<p>The paper shows that with hunger off, deciding whether the hero can reach a cell is PSPACE-complete. There the dice are on the player's side (R2): the player may pick every roll. Here the dice are an enemy who knows everything (R3). A one-player puzzle becomes a two-player game, and two-player games with unbounded length can be EXPTIME-complete. Since P &ne; EXPTIME is a theorem, EXPTIME-hardness would be an unconditional lower bound.</p>
+</div>
+<p data-dm="2"><b>Why the old language cannot be EXPTIME-hard.</b> In L<sub>OFF</sub><sup>W</sup> the reductions satisfy answer-level determinism: on the produced levels no die roll matters, so R2 and R3 give the same answers and the problem stays in PSPACE. To get alternation we must give the dice a real, positional choice. The study surveyed doors (every roll is a veto nature can repeat forever: FAILED), crawling out of water (nature can always return the hero to the entry: FAILED), boulders into pools (each use consumes a boulder, so only polynomially many choices: PSPACE at best), unrestricted teleport (global: FAILED), monsters (large audit, hero can swap with peacefuls), and found the <b>restricted teleport coin</b> <span class="chip ver">VERIFIED</span> in the real game.</p>
+<p data-dm="2"><b>The new language.</b> L<sub>OFF</sub><sup>W+C</sup> = L<sub>OFF</sub><sup>W</sup> without the <code>noteleport</code> flag, plus teleport traps inside one <code>des.teleport_region{&hellip;, exclude = Z}</code> zone and one cursed pair of fumble boots, read under R3 only. Under R2 the same language stays in PSPACE, so a proof would give a clean separation: same levels, R2 PSPACE-complete, R3 EXPTIME-complete (assuming PSPACE &ne; EXPTIME).</p>
+<p data-dm="2"><b>Source problem.</b> Stockmeyer and Chandra's game G6: a CNF formula over your variables X and the opponent's Y; players alternately flip at most one own variable or pass; you win if the formula ever becomes true. It is EXPTIME-complete, its objective is reachability (like ours), and the opponent's move is a menu of 2|Y|+1 options, which a binary coin can pick in &lceil;log<sub>2</sub>(2|Y|+1)&rceil; flips. Play 2 lets you play it.</p>
+<p data-dm="2"><b>Literature gap.</b> The closest published model, two-player motion planning with one shared agent (Ani, Demaine, Hendrickson, Lynch), is only known to be PSPACE-hard and in EXPTIME; EXPTIME-hardness there is open, and the same gap holds for reachability switching games. So no theorem can be cited for &ldquo;one agent + nature forks&rdquo; and the reduction has to be built here.</p>
+</section>
+
+<!-- ============================ PLAY 1 ============================ -->
+<section id="play1" class="lv keep play" aria-labelledby="p1-h">
+<p class="pk">Play 1</p>
+<h2 id="p1-h">Be the dungeon</h2>
+<p>The hero walks up to the teleportation trap. You play the dungeon: when the hero steps on it, you decide where they land. Then switch off the boots or the zone and see what breaks.</p>
+<div id="p1" class="needs-js">
+<div class="row"><span class="lbl">Fumble boots</span><div class="seg sm" id="p1-boots" role="group" aria-label="Fumble boots"><button type="button" data-v="on" aria-pressed="true">Worn</button><button type="button" data-v="off" aria-pressed="false">Off</button></div>
+<span class="lbl">Zone</span><div class="seg sm" id="p1-zone" role="group" aria-label="Teleport zone"><button type="button" data-v="on" aria-pressed="true">On</button><button type="button" data-v="off" aria-pressed="false">Off</button></div>
+<span class="lbl">Dice</span><div class="seg sm" id="p1-mode" role="group" aria-label="Who rolls"><button type="button" data-v="you" aria-pressed="true">You decide</button><button type="button" data-v="random" aria-pressed="false">Random</button></div></div>
+<div class="p1-wrap">
+<div>
+<div id="p1-grid"></div>
+<div class="p1-cap"><span>&darr; left branch</span><span>&darr; right branch</span><span>rest of the level</span></div>
+</div>
+<div>
+<div class="row"><button type="button" class="btn" id="p1-go">Step onto the trap</button><button type="button" class="btn ghost" id="p1-back">Walk back</button><button type="button" class="btn ghost" id="p1-run">Roll 200 times</button></div>
+<div class="row" id="p1-nature" aria-live="polite"></div>
+<p class="p1-note" id="p1-note"></p>
+<p class="muted" style="font-size:.85rem;margin:.2rem 0">Counts: <span id="p1-cnt"></span></p>
+<div class="p1-log" id="p1-log" aria-live="polite"></div>
+</div>
+</div>
+</div>
+<p class="d0only">With the boots and the zone, the dungeon has exactly two answers, forever. That is all the proof needs from it: a fair-looking coin whose every flip the enemy controls.</p>
+<div data-dm="1" class="xpl">
+<p>Real-game results (witness runs, NetHack 5.0.0 headless): with cursed fumble boots and the zone, <b>1,200 landings: A 608, B 592, never the trap, never outside the zone</b>; without boots, 148 of 600 steps were &ldquo;You escape a teleportation trap&rdquo; (about 1 in 5, the game's <code>!rn2(5)</code>); with a third free cell in the zone it was used too; without the zone 8 of 10 landings fell outside. <span class="chip ver">VERIFIED</span></p>
+</div>
+<p data-dm="2"><b>Why it is a clean coin.</b> Stepping on a seen trap calls <code>dotrap</code>; the seen-trap escape needs <code>!Fumbling</code> and is skipped; <code>tele_trap</code> &rarr; <code>tele</code> &rarr; <code>scrolltele</code> &rarr; <code>safe_teleds</code>, which tries random cells and then scans, accepting only cells that pass <code>teleok</code>: no trap, no boulder, and (via <code>tele_jump_ok</code>) inside the zone. So the outcome set is exactly {A, B}. The trap is never used up, so the coin can be flipped exponentially often. The demo grid uses the safe tile shape [A wall T wall B] with a single entry under T (rule Z2 below); the witness board had A T B adjacent, which was fine for testing but is not allowed in the construction.</p>
+<p data-dm="2"><b>Caveat.</b> The level can only be loaded in wizard mode, and wizard mode turns trap teleports into a &ldquo;where to?&rdquo; prompt. The driver answers with the trap's own cell, which the game rejects (&ldquo;Sorry...&rdquo;) and then runs exactly the normal <code>safe_teleds</code> path. This is the closest faithful run possible; it is not a non-wizard run.</p>
+</section>
+
+<!-- ============================ PLAY 2 ============================ -->
+<section id="play2" class="lv keep play" aria-labelledby="p2-h">
+<p class="pk">Play 2</p>
+<h2 id="p2-h">The formula game (G6)</h2>
+<p>You own the variables x; the computer owns y. On your turn flip one x (or pass); then the computer flips one y (or passes). You win the moment the formula F becomes true. If it never does, the computer wins. The computer plays perfectly: it has solved every position.</p>
+<div id="p2" class="needs-js">
+<div class="row"><span class="lbl">Game</span><div class="seg sm" id="p2-preset" role="group" aria-label="Preset formula"><button type="button" aria-pressed="true">A: you can win</button><button type="button" aria-pressed="false">B: you cannot</button><button type="button" aria-pressed="false">C: 3 against 2</button></div></div>
+<div class="g6f" id="p2-f" aria-live="polite"></div>
+<div id="p2-vars"></div>
+<div class="row" id="p2-moves"></div>
+<div class="row"><label><input type="checkbox" id="p2-show"> show the solver</label><button type="button" class="btn ghost sm" id="p2-reset">Restart</button></div>
+<p class="g6s" id="p2-solver" hidden></p>
+<div class="g6log" id="p2-log" aria-live="polite"></div>
+<p class="g6s" id="p2-size"></p>
+</div>
+<p class="d0only">In game A there is a plan that wins whatever the computer does. In game B there is none, even though F <i>could</i> become true if the computer were careless. Telling these apart is the hard question, and for big formulas no fast method can exist.</p>
+<div class="xpl" data-dm="1">
+<p>This is G6 (Stockmeyer and Chandra 1979), EXPTIME-complete. A solver must in general explore the whole position graph, 2<sup>|X|+|Y|+1</sup> positions, because play can cycle and last exponentially long. The NetHack reduction turns each move into a walk: your flip is a corridor you choose; the opponent's move is a sequence of &lceil;log<sub>2</sub>(2|Y|+1)&rceil; coin flips; the formula check is a corridor of doors you can only pass if every clause has a true literal.</p>
+</div>
+<p data-dm="2">Rule detail: G6 says I wins if F <i>ever</i> becomes true, also right after the opponent's move. Lemma L1 (Section 5) shows it is enough to check F only right after your own moves (you can pass), which is why the NetHack checker is reachable only from the post-move point P.</p>
+</section>
+
+<!-- ============================ 2 reduction ============================ -->
+<section id="reduction" class="lv">
+<div class="sec-head"><h2><span class="sn">2</span>How the reduction works</h2><div class="seg sm local" role="group" aria-label="Reading depth for section 2"><button type="button" data-d="1">Overview</button><button type="button" data-d="2">Explained</button><button type="button" data-d="3">Full</button></div></div>
+<p class="oneline" data-dm="1">Each G6 round is a loop through the level: your write path, the check point P, then nature's turn as a walk through one coin, and back to the hub. Doors remember the assignment; the checker is a dead end that ends only in the goal.</p>
+<figure data-dm="1" class="fig rdg" id="fig-chain">
+<svg viewBox="0 0 360 560" role="img" aria-labelledby="rd-t">
+<title id="rd-t">Module chain of the reduction: hub h, Player I write path, check point P, either the checker leading to the goal g, or nature's module: open context door, coin T with outcomes A and B, demultiplexers, repeated d times, then a leaf write path back to the hub.</title>
+<defs>
+<marker id="rd-ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" class="rd-head"/></marker>
+<marker id="rd-arn" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0L10,5L0,10z" class="rd-headn"/></marker>
+</defs>
+<rect x="110" y="10" width="140" height="34" rx="5" class="rd-p"/><text x="180" y="32" class="rd-t">hub h (your turn)</text>
+<rect x="70" y="66" width="220" height="46" rx="5" class="rd-p"/><text x="180" y="86" class="rd-t">write path W(x&#7522; := b) or pass</text><text x="180" y="102" class="rd-s">forced close of false literals, optional open</text>
+<rect x="150" y="134" width="60" height="30" rx="5" class="rd-b"/><text x="180" y="154" class="rd-t">P</text>
+<rect x="10" y="196" width="140" height="150" rx="5" class="rd-c"/><text x="80" y="216" class="rd-t">checker (dead end)</text>
+<text x="80" y="240" class="rd-s">clause 1: pass one open</text><text x="80" y="254" class="rd-s">literal door (S&#178;)</text>
+<text x="80" y="276" class="rd-s">clause 2 &hellip; clause m</text>
+<text x="80" y="300" class="rd-s">(+ global check path if</text><text x="80" y="314" class="rd-s">gadgets are only checkable)</text>
+<rect x="55" y="370" width="50" height="30" rx="5" class="rd-g"/><text x="80" y="390" class="rd-t">g</text>
+<rect x="190" y="190" width="160" height="34" rx="5" class="rd-n"/><text x="270" y="211" class="rd-t">N&#8329;&#8345;: open K_root</text>
+<rect x="190" y="246" width="160" height="34" rx="5" class="rd-n"/><text x="270" y="267" class="rd-t">E_C &rarr; coin T</text>
+<rect x="190" y="304" width="70" height="30" rx="5" class="rd-n"/><text x="225" y="324" class="rd-t">A</text>
+<rect x="280" y="304" width="70" height="30" rx="5" class="rd-n"/><text x="315" y="324" class="rd-t">B</text>
+<rect x="190" y="356" width="160" height="46" rx="5" class="rd-n"/><text x="270" y="376" class="rd-t">demux H_A / H_B</text><text x="270" y="392" class="rd-s">only the open K_u passes; closes it</text>
+<rect x="190" y="424" width="160" height="34" rx="5" class="rd-n"/><text x="270" y="445" class="rd-t">open K_child (or leaf)</text>
+<rect x="160" y="486" width="190" height="46" rx="5" class="rd-p"/><text x="255" y="506" class="rd-t">leaf: W(y&#11388; := v) or pass</text><text x="255" y="522" class="rd-s">the opponent's move, chosen by coins</text>
+<path d="M180,44 V64" class="rd-a"/>
+<path d="M180,112 V132" class="rd-a"/>
+<path d="M162,164 L100,194" class="rd-a"/>
+<path d="M198,164 L240,188" class="rd-a"/>
+<path d="M80,346 V368" class="rd-a"/>
+<path d="M270,224 V244" class="rd-an"/>
+<path d="M255,280 L230,302" class="rd-an"/><path d="M285,280 L310,302" class="rd-an"/>
+<path d="M225,334 V354" class="rd-an"/><path d="M315,334 V354" class="rd-an"/>
+<path d="M270,402 V422" class="rd-an"/>
+<path d="M200,441 C168,441 168,263 188,263" class="rd-an"/><text x="160" y="352" class="rd-s" transform="rotate(-90 160 352)">repeat d times</text>
+<path d="M270,458 V484" class="rd-an"/>
+<path d="M350,509 C358,509 358,27 252,27" class="rd-a"/>
+</svg>
+<figcaption><span class="fn">Figure 1.</span> One round of G6 as a walk. Blue: your moves; purple (dashed arrows): nature's turn through the single coin, d = &lceil;log<sub>2</sub>(2|Y|+1)&rceil; flips; green: the checker, the only way to g. Every arrow starts with a diode, so routes are one-way.</figcaption>
+</figure>
+<div class="xpl" data-dm="2">
+<p><b>Doors remember the assignment.</b> Every occurrence of a literal in a clause gets a self-closing door that is open iff the literal is true. Setting x := 1 walks a write path that forces every &not;x door shut (open it, then walk through it, which closes it) and lets you open the x doors. Declining to open a door only hurts you.</p>
+<p><b>Nature picks the opponent's move with one coin.</b> The menu {pass, flip y<sub>1</sub>, &hellip;} is a binary tree of depth d. You cannot carry the tree position in your head (the hero has no memory the dungeon must respect), so each tree node u has a <i>context door</i> K<sub>u</sub>: open K<sub>u</sub>, flip the coin, then at A (or B) only the branch behind the open K<sub>u</sub> is passable, and passing it closes K<sub>u</sub>. Exactly one context door is open at a time, so the leaf you reach is a function of the coin flips only.</p>
+<p><b>Why one coin per level.</b> A level has one <code>teleport_region</code> record pair, so at most three bounded zones exist; one coin with context doors simulates any number of nature vertices, so one is all the construction uses.</p>
+<p><b>The checker is a dead end.</b> From P you either go to the checker or to nature. In the checker every clause is a fan of literal doors; with F false some clause has all doors closed and you are stuck forever (a loss). So trying the checker too early never helps.</p>
+</div>
+<p data-dm="2"><b>Rules for the coin tile (from the adversary audit).</b> <b>Z1</b>: no boulder can ever reach the coin zone, its entry E, or their neighbours (a boulder pushed onto a teleport trap is relocated anywhere on the level). <b>Z2</b>: the tile is [A wall T wall B], T's only free neighbour is E, A and B leave by their own corridors; then a &ldquo;dead&rdquo; coin is a harmless bounce. <b>Z3</b>: no intended walk over an unfilled pit (pit damage is permanent under R3, which never lets HP regenerate). <b>Z4</b>: never step on T while the turn counter is &le; 0. Z4 exists because of a finding of the audit: after the 64-bit turn counter wraps, <code>noteleport_level</code> is true (it compares <code>stasis_until = 0 &ge; moves</code>), so for about 2<sup>63</sup> turns the trap does nothing; the hero simply waits that phase out. <span class="chip ver">VERIFIED</span> source lines, repair <span class="chip strong">STRONG</span>.</p>
+<p data-dm="2"><b>Size.</b> O(N<sup>2</sup>) cells, O(N<sup>2</sup>) crossovers, one coin, log-space computable (N = formula size + variables). Crossovers sit on write paths that are used exponentially often, so <b>no single-use crossover is allowed anywhere</b>.</p>
+</section>
+
+<!-- ============================ 3 status ============================ -->
+<section id="status" class="lv keep">
+<div class="sec-head"><h2><span class="sn">3</span>What is proven, what is open</h2><div class="seg sm local" role="group" aria-label="Reading depth for section 3"><button type="button" data-d="1">Overview</button><button type="button" data-d="2">Explained</button><button type="button" data-d="3">Full</button></div></div>
+<p class="d0only">Labels: <span class="chip ver">VERIFIED</span> checked by running a program or the real game · <span class="chip strong">STRONG</span> a complete careful argument, not yet reviewed by others · <span class="chip conj">CONJECTURE</span> believed, not proved · <span class="chip fail">NEGATIVE</span> searched hard, found nothing (not a proof that nothing exists) · <span class="chip open">OPEN</span> not done.</p>
+<p data-dm="1">Labels: <span class="chip ver">VERIFIED</span> machine-checked or witnessed this session · <span class="chip strong">STRONG</span> complete argument, not independently reviewed · <span class="chip conj">CONJECTURE</span> · <span class="chip fail">NEGATIVE</span> searched, nothing found (not an impossibility proof) · <span class="chip open">OPEN</span>.</p>
+<div class="tbl">
+<table class="st-tbl">
+<caption><span class="fn">Table 1.</span> Status on 29 October 2026.</caption>
+<tr><th>Piece</th><th>Status</th><th>In plain words / evidence</th></tr>
+<tr><td>Membership: L<sub>OFF</sub><sup>W+C</sup> under R3 is in EXPTIME</td><td><span class="chip strong">STRONG</span></td><td>The game has exponentially many positions, and a computer can solve a game of that size in exponential time. Theorem M + the audit's check of conditions C1&ndash;C6.</td></tr>
+<tr><td>Teleport coin: exactly two outcomes, reusable</td><td><span class="chip ver">VERIFIED</span></td><td>Real game, 1,200 landings, only A or B; without boots &asymp;1/5 escapes; zone controls pass. Caveat: wizard-mode prompt path.</td></tr>
+<tr><td>Adversary audit: the dice have no other power</td><td><span class="chip strong">STRONG</span></td><td>No damage on intended plays; Str/Con never drop unless the hero kicks; only the coin moves the hero. Found and fixed: the coin dies after the turn counter wraps (rules Z2 + Z4); the hero may start Burdened (time only).</td></tr>
+<tr><td>Abstract reduction G6 &rarr; doors + diodes + crossovers + one coin (Thm T1)</td><td><span class="chip strong">STRONG</span></td><td>If the ideal gadgets exist, the game wins exactly when G6 is a win.</td></tr>
+<tr><td>Transfer to NetHack (Thm T2)</td><td><span class="chip strong">STRONG</span> conditional</td><td>Holds once gadgets meet G1&ndash;G5 (game-safety).</td></tr>
+<tr><td>Machine checker for hero-vs-dice boulder games</td><td><span class="chip ver">VERIFIED</span></td><td>Python + Rust solvers agree with each other and with an independent naive solver on 5,100 random levels.</td></tr>
+<tr><td>Checkable diode <code>diode_ck</code></td><td><span class="chip ver">VERIFIED</span></td><td>A one-way corridor that works if a final check confirms it never jammed. Exhaustive check, 4 states (2 clean).</td></tr>
+<tr><td>Pure reusable diode / self-closing door</td><td><span class="chip fail">NEGATIVE</span></td><td>&asymp;1.4 million random boards (4&times;4 to 6&times;5, 1&ndash;4 boulders) + annealing: none. Explanation: the overshoot lemma. Impossibility itself is only a conjecture.</td></tr>
+<tr><td>Checkable self-closing door</td><td><span class="chip open">OPEN</span></td><td>Candidate: Ani et al. Fig. 37; transcription and exhaustive check in progress (A2_scd.py).</td></tr>
+<tr><td>Reusable crossover</td><td><span class="chip open">OPEN</span></td><td>Planar version needs a working self-closing door first.</td></tr>
+<tr><td>Guards for the global check path in a game</td><td><span class="chip open">OPEN</span></td><td>The check path touches main corridors; a hero could use it as a shortcut unless guarded.</td></tr>
+<tr><td><b>Overall: L<sub>OFF</sub><sup>W+C</sup> under R3 is EXPTIME-complete</b></td><td><span class="chip conj">CONJECTURE</span></td><td><b>Until a game-safe reusable self-closing door (or diode + crossover) exists.</b></td></tr>
+</table>
+</div>
+<p data-dm="2">Contrast with the paper's results (PSPACE-complete without hunger, NP-complete with hunger): those survived several adversarial review rounds and have witnesses in the real game. Nothing on this page has been reviewed yet.</p>
+</section>
+
+<!-- ============================ 4 gallery ============================ -->
+<section id="gallery" class="lv keep">
+<div class="sec-head"><h2><span class="sn">4</span>Gadget gallery</h2></div>
+<p class="d0only">A <b>gadget</b> is a small room of walls and boulders with doorways (letters). What matters is which doorway you can walk to from which, and how that changes when you push the boulders. Step through each one, then open it in the lab.</p>
+<p data-dm="1">Layouts from <code>tools/exptime/A_library.py</code>, step-throughs computed by this page's port of <code>A_core.py</code> (shortest walks). Capital letters are ports; boulders are <code>0</code>.</p>
+<div class="gal">
+<article class="gcard">
+<h3>Checkable diode <span class="chip ver">VERIFIED</span></h3>
+<p class="d0only">A one-way door made of one boulder. Going A&rarr;B, you push the boulder right, slip out via C, come back in at D, push it back. Going B&rarr;A is impossible, as long as nobody jammed it.</p>
+<p data-dm="1">Ani et al.'s protodiode; C and D joined by a free corridor; checks A&rarr;C then D&rarr;B. Postselected + joined = ideal diode (sound and complete); broken states absorbing.</p>
+<div class="gal-step" data-g="diode_ck" data-k="use"></div>
+<div class="row"><button type="button" class="btn sm" data-open-lab="diode_ck">Open in lab</button></div>
+</article>
+<article class="gcard">
+<h3>How the diode breaks</h3>
+<p class="d0only">Push one step too far and the boulder gets stuck at the end. Now the door is open both ways. A final check corridor detects this, which is why we call it &ldquo;checkable&rdquo;.</p>
+<p data-dm="1">Overshoot: the second push east sends X to e2, a dead end. That state allows B&rarr;A. Raw (no postselection) the gadget is not sound; with the check path any play that broke it can never win.</p>
+<div class="gal-step" data-g="diode_ck" data-k="break"></div>
+<div class="row"><button type="button" class="btn sm" data-open-lab="diode_ck">Open in lab</button></div>
+</article>
+<article class="gcard">
+<h3>SLOT1 <span class="chip fail">FAILS</span></h3>
+<p class="d0only">Try to make the diode safe by pushing the boulder back from the far side. The same overshoot appears: one push too many and the way back opens.</p>
+<p data-dm="1">One boulder, return push from the far end. 4 states; the overshoot state opens B&rarr;A. COMPLETE but not SOUND.</p>
+<div class="gal-step" data-g="slot1"></div>
+<div class="row"><button type="button" class="btn sm" data-open-lab="slot1">Open in lab</button></div>
+</article>
+<article class="gcard">
+<h3>UTURN2 <span class="chip fail">FAILS</span></h3>
+<p class="d0only">Two boulders: one blocks the way behind you, one locks the first. It does everything a one-way door should, but some sequence of pushes still opens the way back.</p>
+<p data-dm="1">2 boulders (behind-blocker on a U-turn + interlock), 115 states: complete but unsound; the interlock's own perpendicular push leaks. The steps below are the shortest counterexample found by the page.</p>
+<div class="gal-step" data-g="uturn2"></div>
+<div class="row"><button type="button" class="btn sm" data-open-lab="uturn2">Open in lab</button></div>
+</article>
+<article class="gcard">
+<h3>G_D one-way door (NP proof)</h3>
+<p class="d0only">The door used in the paper's NP proof. It works one way the first time, but once opened it stays open. Fine when every door is used once; useless when a game can last forever.</p>
+<p data-dm="1">hu-on-lower Lemma 3.3. Closed: E&rarr;Q opens it (boulder into the pocket); open: free both ways. Engine sanity test: 2 states, matches the lemma <span class="chip ver">VERIFIED</span>.</p>
+<div class="gal-step" data-g="gd"></div>
+<div class="row"><button type="button" class="btn sm" data-open-lab="gd">Open in lab</button></div>
+</article>
+<article class="gcard">
+<h3>Checkable door, piece 1 <span class="chip open">IN PROGRESS</span></h3>
+<p class="d0only">The first piece of a known one-player recipe for a self-closing door, copied from a research paper's figure. Another agent is checking it right now; no result yet.</p>
+<p data-dm="1">Proto-precursor, Ani et al. (arXiv 2412.20079) Fig. 36a, transcribed in <code>tools/exptime/A2_scd.py</code> (workstream A2, started after this page's sources): checks A&rarr;D, C&rarr;G, B&rarr;A, B&rarr;C. Recipe for the checkable SCD (Fig. 37): precursor + 1-toggle + two diodes. No verdict yet.</p>
+<div class="gal-step" data-g="precursor" data-k="static"></div>
+<div class="row"><button type="button" class="btn sm" data-open-lab="precursor">Open in lab</button></div>
+</article>
+<article class="gcard ph">
+<h3>Self-closing door <span class="chip open">NOT BUILT</span></h3>
+<p>Wanted: a door you open by visiting a button, which lets you through once and then shuts behind you.</p>
+<p><b>Why it is hard:</b> to shut behind you, a boulder has to end up <i>behind</i> the hero. But pushing always leaves the hero on the cell the boulder just left, so the button and the tunnel end up connected, and the hero can slip through without paying. Every design found so far leaks this way. A checkable version (Ani et al. Fig. 37: a precursor, two diodes and a 1-toggle) exists for one player; its pieces are being transcribed and checked right now (previous card), and it would still need the game-level guards.</p>
+</article>
+<article class="gcard ph">
+<h3>Reusable crossover <span class="chip open">NOT BUILT</span></h3>
+<p>Wanted: two corridors that cross, each usable forever, with no way to switch from one to the other.</p>
+<p><b>Why it is hard:</b> the obvious crossover made of two self-closing doors is correct but cannot be drawn flat: its two paths would have to cross somewhere. A flat one is known on paper (built from self-closing doors), so the whole problem shrinks to one missing piece: a game-safe self-closing door. The NP proof's crossover is single-use, and single-use pieces are forbidden here because the game can last exponentially long.</p>
+</article>
+</div>
+<p data-dm="2"><b>The obstruction (A-gadgets &sect;4).</b> <i>Overshoot lemma</i>: if a boulder moves p&rarr;q by a push and later back q&rarr;p, the return push is made from q+d, so q+d is floor; right after the first push the hero stands on p and can push again, sending the boulder to q+d. Every back-and-forth track has an overshoot state; it is harmless only if dead, and a guard boulder on q+d has the same problem. <i>Backward-following</i>: after an A&rarr;B traversal the hero can retrace the walk backwards until some push put a boulder on an earlier walked cell, so every diode traversal must push a boulder behind the hero, and the next A-traversal must clear it: again a back-and-forth track. Both <span class="chip strong">STRONG</span>; that this rules out every pure diode is a <span class="chip conj">CONJECTURE</span>.</p>
+</section>
+
+<!-- ============================ PLAY 3 ============================ -->
+<section id="play3" class="lv keep play" aria-labelledby="p3-h">
+<p class="pk">Play 3 · human intuition wanted</p>
+<h2 id="p3-h">Gadget lab</h2>
+<div class="challenge"><b>Challenge.</b> Find a reusable diode (A&rarr;B only) or self-closing door that <i>cannot break</i>: no sequence of pushes ever opens a forbidden way. None was found among about 1.4 million computer-generated boards. If the lab says &#10003; for a pure diode or self-closing door, copy the layout from the text box and send it to Ivan.</div>
+<p>Paint walls, floor, boulders and ports (doorways, capital letters). Then press <b>Check</b>: the page tries every way the hero can walk and push from every port, in every reachable boulder arrangement, and compares the result with the ideal gadget. You can also walk around inside yourself.</p>
+<div id="lab" class="labx needs-js">
+<div class="row" id="lab-presets"><span class="lbl">Load</span><button type="button" class="btn ghost sm" data-g="diode_ck">checkable diode</button><button type="button" class="btn ghost sm" data-g="slot1">SLOT1</button><button type="button" class="btn ghost sm" data-g="uturn2">UTURN2</button><button type="button" class="btn ghost sm" data-g="gd">G_D door</button><button type="button" class="btn ghost sm" data-g="precursor">proto-precursor</button><button type="button" class="btn ghost sm" data-g="empty">empty frame</button></div>
+<div class="row"><span class="lbl">Paint</span><div class="seg sm" id="lab-tools" role="group" aria-label="Paint tool"><button type="button" data-t="#" aria-pressed="true">Wall #</button><button type="button" data-t="." aria-pressed="false">Floor .</button><button type="button" data-t="0" aria-pressed="false">Boulder 0</button><button type="button" data-t="P" aria-pressed="false">Port A-Z</button></div>
+<span class="lbl">Size <span id="lab-size"></span></span><button type="button" class="btn ghost sm" id="lab-wm" aria-label="narrower">W&minus;</button><button type="button" class="btn ghost sm" id="lab-wp" aria-label="wider">W+</button><button type="button" class="btn ghost sm" id="lab-hm" aria-label="shorter">H&minus;</button><button type="button" class="btn ghost sm" id="lab-hp" aria-label="taller">H+</button></div>
+<div class="lab-top">
+<div><div id="lab-grid"></div><div class="row"><button type="button" class="btn ghost sm" id="lab-walk">Walk inside</button></div><p class="muted" id="lab-walkmsg" style="font-size:.85rem;max-width:22rem" aria-live="polite"></p></div>
+<div>
+<label for="lab-text" class="lbl" style="font:500 .72rem/1 var(--f-mono);text-transform:uppercase;color:var(--muted)">Layout (copy / paste)</label><br>
+<textarea id="lab-text" spellcheck="false"></textarea><br>
+<button type="button" class="btn ghost sm" id="lab-apply">Use this text</button>
+<div class="row"><span class="lbl">Target</span><select id="lab-target" aria-label="Target gadget"></select></div>
+<div class="row"><span class="lbl">Mode</span><select id="lab-mode" aria-label="Mode"><option value="pure">pure (must never break)</option><option value="checkable">checkable (postselected)</option></select></div>
+<div class="row" id="lab-ckrow"><span class="lbl">Checks</span><input type="text" id="lab-checks" aria-label="Checking sequence, e.g. A>C, D>B"><span class="lbl">Join</span><input type="text" id="lab-joins" aria-label="Joined ports, e.g. C=D" style="width:5rem"><span class="lbl">External</span><input type="text" id="lab-ext" aria-label="External ports" style="width:5rem"></div>
+<div class="row"><button type="button" class="btn" id="lab-run">Check</button></div>
+</div>
+</div>
+<div class="lab-out" id="lab-out" aria-live="polite"></div>
+</div>
+<p class="d0only">&ldquo;Sound&rdquo; means the gadget never lets you do something the ideal one-way door forbids. &ldquo;Complete&rdquo; means it lets you do everything the ideal door allows. A winner needs both, in every arrangement the boulders can reach.</p>
+<div class="xpl" data-dm="1">
+<p>Rules (NetHack's Sokoban rules with a heavy hero, = Push-1F): the hero moves to any of 8 neighbours; an orthogonal step into a boulder pushes it if the cell beyond is free floor; no diagonal pushes; a diagonal step needs a free target and at least one free corner (walls and boulders both block corners). A <i>traversal</i> starts on a port and ends the first time the hero stands on a port again. The gadget is rejected (LEAK) if any boulder can reach a port cell.</p>
+</div>
+<p data-dm="2"><b>What &ldquo;game-safe&rdquo; means here.</b> Inside a gadget only the hero acts (the coin is outside every gadget), so a concrete gadget can replace the ideal one in the dice game iff two one-player simulations hold: <i>sound</i> (every concrete traversal p&rarr;q is matched by an ideal traversal p&rarr;q with related successors, or is a bounce back to p with no real change) and <i>complete</i> (every ideal traversal is realized), both from the initial states. This is the greatest-fixed-point check of <code>A_core.check</code>, ported line by line; the lab reproduces <code>python tools/exptime/A_check.py</code> exactly on the library (same states, relations, verdicts). <b>Checkable mode</b>: states where the checking sequence is legal are &ldquo;clean&rdquo;; the lab verifies that broken is absorbing and compares the clean part, with the joined ports wired by a free corridor, to the target. Caps: 60 floor cells, 5,000 boulder states, 3 million hero positions; beyond that it says &ldquo;too big&rdquo;.</p>
+</section>
+
+<!-- ============================ 5 full ============================ -->
+<section id="full" class="lv">
+<div class="sec-head"><h2><span class="sn">5</span>Definitions and proofs</h2><div class="seg sm local" role="group" aria-label="Reading depth for section 5"><button type="button" data-d="1">Overview</button><button type="button" data-d="2">Explained</button><button type="button" data-d="3">Full</button></div></div>
+<p class="oneline" data-dm="1">The formal statements (R3 game, membership, G6, the abstract game, Theorems T1 and T2, the coin lemma, the game-safety criterion) with draft proofs. Switch this section to <b>Full</b> to read them.</p>
+<p data-dm="2" data-dmax="2">The full statements and proofs are shown at depth <b>Full</b> (button above). They are drafts from the working notes (exptime-model.md, B-reduction.md, C-audit.md, A-gadgets.md), not yet reviewed.</p>
+
+<div data-dm="3" class="thm def" id="def-r3"><p><span class="thm-h">Definition 5.1</span><span class="nm">(the R3 game G<sub>I</sub>)</span>. Fix an instance I run through the harness. A <i>configuration</i> is the full program state at a request for an input token or a core random number <code>RND(x)</code> (the generator state is dropped: nature chooses values directly). Player nodes are input requests, nature nodes are <code>RND(x)</code> calls with successors 0..x&minus;1. Full information. The hero wins a play iff it reaches a <i>win node</i> (top-level command request, hero alive on level 1 at g); terminal non-win nodes (death, leaving the level) and infinite plays are losses. L<sub>X</sub><sup>R3</sup> = instances whose initial configuration is winning for the hero.</p></div>
+
+<div data-dm="3" class="thm" id="thm-m"><p><span class="thm-h">Theorem 5.2</span><span class="nm">(membership, Thm M)</span>. If the whitelist X satisfies C1 (poly-size state), C2 (each segment runs poly time with capped RNG loops), C3 (bounded branching), C4 (decidable win/death), C5 (single level), C6 (fixed external inputs), then L<sub>X</sub><sup>R3</sup> &isin; EXPTIME. The audit checks C1&ndash;C6 for W+C. <span class="chip strong">STRONG</span></p>
+<details class="proof"><summary>Proof</summary><div class="pf">
+<p>Build the game graph: at most 2<sup>p(n)</sup> configurations (C1), edges by simulating one segment (C2), out-degree &le; 2<sup>31</sup> (C3). Compute the hero's attractor of the win nodes: Attr<sub>0</sub> = win nodes; Attr<sub>k+1</sub> adds player nodes with some successor in Attr<sub>k</sub> and nature nodes with all successors in Attr<sub>k</sub>. The fixpoint comes after at most |V| rounds, each 2<sup>O(p(n))</sup> time. The hero wins iff the start is in Attr: reachability games are positionally determined, and nature's strategy &ldquo;stay outside Attr&rdquo; beats the hero otherwise, infinite plays being losses. Equivalently, an alternating machine with polynomial space decides it, and APSPACE = EXPTIME (Chandra, Kozen, Stockmeyer 1981). For W+C: the boots, HFumbling timer and trap records are O(1) words, no creator is added, <code>safe_teleds</code> is at most 40 tries plus one scan, and a teleport trap never changes the level. <span class="qed">&#8718;</span></p>
+</div></details></div>
+
+<div data-dm="3" class="thm def" id="def-g6"><p><span class="thm-h">Definition 5.3</span><span class="nm">(G6, Stockmeyer&ndash;Chandra 1979, as restated by Hearn 2006)</span>. Instance: a CNF formula F over disjoint X &cup; Y and an assignment &alpha;<sub>0</sub>. Players I and II alternate; a move of I (II) changes at most one variable in X (Y); passing is allowed. Player I wins iff F ever becomes true; an infinite play is not a win for I. G6 is EXPTIME-complete.</p></div>
+
+<div data-dm="3" class="thm lem" id="lem-l1"><p><span class="thm-h">Lemma 5.4</span><span class="nm">(L1, post-I checking)</span>. Let G6' be G6 except that I wins iff F is true directly after one of I's moves (a pass included). From any start where F(&alpha;<sub>0</sub>) is false, I wins G6 iff I wins G6'. <span class="chip strong">STRONG</span></p>
+<details class="proof"><summary>Proof</summary><div class="pf">
+<p>A G6' win is a G6 win. Conversely let &sigma; win G6 and define &sigma;': play &sigma; until the first position where F is true; if it is post-I, done; otherwise it is post-II and &sigma;' passes, giving a post-I position with the same assignment and F true. Every &sigma;'-play follows a &sigma;-play up to that point, so it reaches such a position. <span class="qed">&#8718;</span></p>
+</div></details></div>
+
+<div data-dm="3" class="thm def" id="def-game"><p><span class="thm-h">Definition 5.5</span><span class="nm">(one-agent nature game 𝒢)</span>. A directed route graph of locations (corridor cells, hero forks, merges, gadget ports, start s, goal g, one coin vertex T with out-ports A, B). Gadgets: the <b>self-closing door</b> SCD with bit &sigma;; tunnel O always passable, afterwards &sigma;' &isin; {&sigma;, open} (hero's choice); tunnel S passable iff open, afterwards closed (forced); <b>MSCD(a,s)</b> one bit with a O-tunnels and s S-tunnels; the <b>coin</b>: arriving at T the play continues at A or B, nature's choice, every time; the <b>crossover</b>: two independent directed passages. Positions = hero location + all bits; full information; the hero wins iff he reaches g; infinite plays lose.</p></div>
+
+<div data-dm="3" class="thm lem" id="lem-ts"><p><span class="thm-h">Lemma 5.6</span><span class="nm">(TS, tunnel sharing)</span>. MSCD(a, s) is simulated by one SCD D plus, for each tunnel kind with k &ge; 2 users, a sharing region of context SCDs and diodes: every realized hero option is an ideal option or leads to a stuck pocket, and every ideal traversal is realized. <span class="chip strong">STRONG</span></p>
+<details class="proof"><summary>Proof</summary><div class="pf">
+<p>User p arrives at u<sub>p</sub> &rarr; O-tunnel of context door K<sub>p</sub> (closed) &rarr; diode &rarr; merge m &rarr; D's tunnel &tau; &rarr; split m' &rarr; for each q: S-tunnel of K<sub>q</sub> &rarr; diode &rarr; v<sub>q</sub>. Invariant: outside the region all K are closed. Entering at u<sub>p</sub> only K<sub>p</sub>'s O-tunnel is in reach; between m and m' the only move is through &tau; (if &tau; is a closed S-tunnel the hero is stuck behind a diode); at m' only an open K passes, i.e. at most K<sub>p</sub>, and passing closes it. So the hero leaves only at v<sub>p</sub>, having traversed &tau; once, all K closed again. A declined K<sub>p</sub> means stuck at m'. Turning back at a closed S-tunnel becomes &ldquo;stuck&rdquo;; with full information the completeness proof never needs it. <span class="qed">&#8718;</span></p>
+</div></details></div>
+
+<div data-dm="3" class="thm lem" id="lem-n"><p><span class="thm-h">Lemma 5.7</span><span class="nm">(N, nature module integrity)</span>. If the hero passes N<sub>in</sub> with all context doors closed, then he either never leaves the nature module (a loss) or enters exactly the leaf route of the leaf reached from the root by nature's coin outcomes c<sub>1</sub>&hellip;c<sub>d</sub>, after exactly d coin uses, with all context doors closed. <span class="chip strong">STRONG</span></p>
+<details class="proof"><summary>Proof</summary><div class="pf">
+<p>Invariant J<sub>k</sub> at the k-th arrival at T: the open context doors are a subset of {K<sub>u<sub>k</sub></sub>}, u<sub>k</sub> the depth-(k&minus;1) node on the path c<sub>1</sub>&hellip;c<sub>k&minus;1</sub>. For k = 1 only K<sub>root</sub>'s O-tunnel lies between N<sub>in</sub> and the coin entry. Step: nature picks c<sub>k</sub>, say A; the only continuation is H<sub>A</sub>, from which only S<sup>A</sup>-tunnels leave, passable only for open doors, i.e. only K<sub>u<sub>k</sub></sub>'s (if the hero declined to open it he is stuck). Passing it closes it and leads to u<sub>k+1</sub>; if internal, the only O-tunnel there is K<sub>u<sub>k+1</sub></sub>'s, then back to T: J<sub>k+1</sub>. At a leaf (k = d) he is in its leaf route with all K closed. Diodes forbid returning from A/B to T or reaching another demux branch. <span class="qed">&#8718;</span></p>
+</div></details></div>
+
+<div data-dm="3" class="thm lem" id="lem-inv"><p><span class="thm-h">Lemma 5.8</span><span class="nm">(literal invariant Inv-L)</span>. Let &alpha;<sub>t</sub> be the logical assignment (updated when the hero leaves a write path W(v := b)). Whenever the hero is not inside a write path, the set of open literal doors is contained in Open(&alpha;<sub>t</sub>) = {D<sub>&#8467;,j</sub> : &#8467; true under &alpha;<sub>t</sub>}; if he opens every O-tunnel he passes, equality holds. <span class="chip strong">STRONG</span></p>
+<details class="proof"><summary>Proof</summary><div class="pf">
+<p>Literal doors change only in write paths (O<sup>1</sup>, O<sup>2</sup>, S<sup>1</sup>) and in the checker (S<sup>2</sup>, which only closes, and after which the hero never leaves except at g). In W(v := b) only v's doors change: each door of the false literal passes O<sup>2</sup> then S<sup>1</sup> and is therefore closed at the exit; doors of the true literal may be opened. Leaving a write path elsewhere than its exit is impossible (directed tunnels; a declined O<sup>2</sup> makes S<sup>1</sup> impassable). <span class="qed">&#8718;</span></p>
+</div></details></div>
+
+<div data-dm="3" class="thm" id="thm-t1"><p><span class="thm-h">Theorem 5.9</span><span class="nm">(T1, abstract correctness)</span>. Player I wins G6(F, &alpha;<sub>0</sub>) iff the hero wins the game 𝒢<sub>F</sub> built from SCD/MSCD literal doors, write paths, the hub, check point P, the dead-end checker, and the nature module with one coin and &le; 4|Y|+1 context doors. <span class="chip strong">STRONG</span></p>
+<details class="proof"><summary>Proof</summary><div class="pf">
+<p><b>Completeness.</b> Take I's positional winning strategy &sigma; in G6' (Lemma 5.4). At the hub with assignment &alpha; (doors canonical, all K closed) walk the write path of &sigma;(&alpha;), opening every O-tunnel; at P the doors equal Open(&alpha;'). If F(&alpha;') holds, enter the checker: each clause has an occurrence with a true literal, its door is open, pass it; reach g. Otherwise go to N<sub>in</sub>, open K<sub>root</sub>, and at each demux take the one open branch (Lemma 5.7); after d flips walk the leaf route of nature's chosen move, back at the hub with Open(&alpha;''). Every nature strategy produces a G6' play consistent with &sigma;, which reaches a post-I position with F true, so the hero reaches g. Plays may be exponentially long, which only requires every gadget to be reusable.</p>
+<p><b>Soundness.</b> Let &tau; be II's positional strategy under which F is never true. Nature, when the hero passes N<sub>in</sub> with logical assignment &alpha;', fixes a leaf z labelled &tau;(&alpha;') and answers the coin flips along the root-to-z path. By the route structure and Lemma 5.7 every play is a sequence of rounds hub &rarr; I-route &rarr; P &rarr; nature walk &rarr; leaf z &rarr; hub, so the round-boundary assignments form a &tau;-play: F is false at every visit of P. If the hero enters the checker there, some clause is false, all its doors are closed (Lemma 5.8), the checker has no O-tunnel, so he is stuck. g has no other in-edge; infinite plays lose. <span class="qed">&#8718;</span></p>
+</div></details></div>
+
+<div data-dm="3" class="thm def" id="def-safe"><p><span class="thm-h">Definition 5.10</span><span class="nm">(game-safety of a boulder gadget)</span>. A gadget is a window with port cells; local state = boulder set; a traversal from port p starts on p and ends the first time the hero stands on a port. A concrete gadget C <i>game-safely realizes</i> an ideal automaton A if (initial states related in both) there are greatest relations with: <b>sound</b>: (c, a) &isin; R &rArr; every concrete traversal p&rarr;q (c&rarr;c') is matched by an ideal traversal p&rarr;q (a&rarr;a') with (c', a') &isin; R, or q = p and (c', a) &isin; R; <b>complete</b>: every ideal traversal is realized with related successors. Requirements G1&ndash;G5 of the reduction: locality (no boulder reaches a port), soundness, broken absorbing, completeness by RNG-free walks, zero HP and unbounded reuse.</p></div>
+
+<div data-dm="3" class="thm lem" id="lem-prune"><p><span class="thm-h">Lemma 5.11</span><span class="nm">(pruning)</span>. In a reachability game, let Doom be the positions from which the goal is unreachable in the underlying graph. Deleting hero edges into Doom does not change the winner from any position outside Doom. <span class="chip strong">STRONG</span></p>
+<details class="proof"><summary>Proof</summary><div class="pf">
+<p>A winning strategy never enters Doom, so it survives the deletion; deleting hero edges only removes hero options, and nature's edges are untouched, so no losing position becomes winning. Application: if broken gadgets are absorbing and every route to g passes every gadget's check traversals, a broken gadget is in Doom, and only the hero's own pushes can break one; so the game equals the one with all breaking traversals deleted, i.e. the postselected gadget. <span class="qed">&#8718;</span></p>
+</div></details></div>
+
+<div data-dm="3" class="thm" id="thm-t2"><p><span class="thm-h">Theorem 5.12</span><span class="nm">(T2, NetHack realization, conditional)</span>. If the SCD, diode and directed crossover are realized by boulder gadgets meeting G1&ndash;G5 (plus a guarded global check path if they are only checkable), and the audit items C-1 to C-4 hold (C-4 in its repaired form with rules Z1&ndash;Z4), then the hero has an R3-winning strategy in the NetHack instance I<sub>F</sub> iff he wins 𝒢<sub>F</sub>. With Theorem 5.2, L<sub>OFF</sub><sup>W+C</sup> under R3 would be EXPTIME-complete. <span class="chip strong">STRONG</span> conditional; overall <span class="chip conj">CONJECTURE</span></p>
+<details class="proof"><summary>Proof sketch</summary><div class="pf">
+<p>(&lArr;) The ideal strategy is realized by RNG-free walks (G4); the boots are worn first; by C-1 the only roll that matters is the landing cell, which is exactly the abstract coin (witness W9). No HP is ever lost (G5, zero coin damage), so plays of any length survive. (&rArr;, contrapositive) Nature plays the abstract counter-strategy on the image of clean histories and arbitrary legal values elsewhere. Every realized hero option is an abstract option, a null visit, a stuck pocket, a break (which never wins, Lemma 5.11 with the check path), a death or leaving the level. So a realized play reaching g would project to an abstract counter-strategy play reaching g, contradicting T1. <span class="qed">&#8718;</span></p>
+</div></details></div>
+
+<div data-dm="3" class="thm lem" id="lem-coin"><p><span class="thm-h">Lemma 5.13</span><span class="nm">(teleport coin)</span>. With the hero wearing cursed fumble boots, not levitating, the trap seen, no <code>noteleport</code> flag, the turn counter &ge; 1, and the zone obeying Z1/Z2, a step onto T moves the hero to exactly one of A, B, nature's choice; no other outcome exists and the trap is reusable without bound. <span class="chip strong">STRONG</span>, witnessed <span class="chip ver">VERIFIED</span></p>
+<details class="proof"><summary>Proof (source path)</summary><div class="pf">
+<p><code>dotrap</code>: the seen-trap escape <code>already_seen &amp;&amp; !Fumbling &amp;&amp; &hellip; &amp;&amp; !rn2(5)</code> short-circuits before the roll (<span class="src">trap.c:3035-3038</span>). <code>tele_trap</code>: no Antimagic, <code>noteleport_level</code> false iff moves &ge; 1, <code>once</code> unset, no fixed destination &rarr; <code>tele</code> &rarr; <code>scrolltele</code>: the &ldquo;disoriented&rdquo; branch needs the Amulet or the Wizard's Tower; no teleport control &rarr; <code>safe_teleds</code> (<span class="src">teleport.c:717-770</span>): at most 40 random tries, then a full scan, all with <code>teleok</code> (no trap, goodpos incl. no boulder, <code>tele_jump_ok</code>: inside the zone stays inside, <span class="src">teleport.c:386-418</span>); the trap backup is never used because A and B qualify. Outcome set {A, B}. Witness W9: 1,200/1,200 landings on {A, B}. <span class="qed">&#8718;</span></p>
+</div></details></div>
+
+<div data-dm="3" class="thm lem" id="lem-over"><p><span class="thm-h">Lemma 5.14</span><span class="nm">(overshoot)</span>. If a boulder is moved p&rarr;q = p+d by a push and later back q&rarr;p, then right after the first push the hero can push it on to q+d unless a boulder already occupies q+d. <span class="chip strong">STRONG</span></p>
+<details class="proof"><summary>Proof</summary><div class="pf">
+<p>The return push is made from q+d, so q+d is floor. After the first push the hero stands on p with the boulder on q; pressing d again pushes it to q+d whenever q+d holds no boulder. A guard boulder on q+d must leave before the return push and come back afterwards, which recreates the problem for the guard. <span class="qed">&#8718;</span></p>
+</div></details></div>
+
+<div data-dm="3" class="thm" id="conj"><p><span class="thm-h">Conjecture 5.15</span>. L<sub>OFF</sub><sup>W+C</sup> under R3 is EXPTIME-complete. Equivalently (given T1, T2 and Theorem 5.2): there is a boulder self-closing door, pure or checkable with guarded check paths, that is game-safe in the sense of Definition 5.10. <span class="chip conj">CONJECTURE</span></p></div>
+<p data-dm="3"><b>Under other readings.</b> Under R2 (player picks rolls) the language is in PSPACE (the paper's Theorem A); under R4 (probability threshold) the coin can be retried until lucky, so nothing transfers. The statement is for R3 only.</p>
+</section>
+
+<!-- ============================ refs ============================ -->
+<section id="refs" class="lv">
+<div class="sec-head"><h2>References</h2></div>
+<ol class="tight" style="font-size:.92rem">
+<li>L. J. Stockmeyer, A. K. Chandra. Provably difficult combinatorial games. <i>SIAM J. Comput.</i> 8(2):151&ndash;174, 1979. (G6; original not read, paywalled; definition from the restatements below.)</li>
+<li>R. A. Hearn. <i>Games, Puzzles, and Computation.</i> MIT PhD thesis, 2006, &sect;6.2.1; E. D. Demaine, R. A. Hearn, Constraint Logic, CCC 2008, &sect;6.2. (G6 verbatim; 2CL EXPTIME-complete.)</li>
+<li>A. K. Chandra, D. C. Kozen, L. J. Stockmeyer. Alternation. <i>JACM</i> 28(1):114&ndash;133, 1981. (APSPACE = EXPTIME.)</li>
+<li>H. Ani, L. Chung, E. D. Demaine, J. Diomidov, D. Hendrickson, J. Lynch. Pushing Blocks via Checkable Gadgets: PSPACE-completeness of Push-1F and Block/Box Dude. FUN 2022; arXiv 2412.20079. (Checkable gadgets, protodiode, postselection.)</li>
+<li>H. Ani, J. Bosboom, E. D. Demaine, J. Diomidov, D. Hendrickson, J. Lynch. Walking through Doors is Hard, even without Staircases. FUN 2020; arXiv 2006.01256. (Self-closing doors; planar crossover, Lemma 2.6; secondary reading.)</li>
+<li>H. Ani, E. D. Demaine, D. Hendrickson, J. Lynch. Trains, Games, and Complexity: 0/1/2-Player Motion Planning through Input/Output Gadgets. WALCOM 2022; arXiv 2005.03192. (Shared-agent two-player model; EXPTIME-hardness open.)</li>
+<li>J. Fearnley, M. Gairing, M. Mnich, R. Savani. Reachability Switching Games. <i>LMCS</i> 17(2):10, 2021. (Two-player case PSPACE-hard and in EXPTIME.)</li>
+<li>E. D. Demaine, D. H. Hendrickson, J. Lynch. Toward a General Theory of Motion Planning Complexity. ITCS 2020. (Two robots, EXPTIME-complete.)</li>
+<li>J. Rintanen. Complexity of Planning with Partial Observability. ICAPS 2004, Thm 10; M. L. Littman, Probabilistic propositional planning, AAAI 1997. (Non-geometric analogue: EXPTIME-complete.)</li>
+<li>L. Chung. Complexity of Unbounded Boolean Formula Games. MIT S.M. thesis, 2026. (Restatement of the G-games.)</li>
+<li>Working notes (this project): proofs/exptime-feasibility.md, exptime-sources.md, exptime-model.md, exptime-mech-doors.md, exptime-mech-monsters-traps.md, proofs/exptime/A-gadgets.md, B-reduction.md, C-audit.md, D-checker.md; tools/exptime/A_core.py, A_check.py, D_game.py.</li>
+</ol>
+<p><a href="index.html">&larr; Back to the paper</a></p>
+</section>
+</main>
+</div>
+<script src="exptime.js?v=20261029e"></script>
+</body>
+</html>
