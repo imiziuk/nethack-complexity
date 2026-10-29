@@ -1,0 +1,8 @@
+// nature forces a loss: landing b leads back to the start, a leads to G; nature always picks b
+##########
+####a...G#
+#@.T######
+#.##b.####
+#.....####
+##########
+:zone 3 1 4 3

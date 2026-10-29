@@ -1,0 +1,12 @@
+// B's coin tile (INTERFACE.md): Z = 1x5 row [A wall T wall B], T entered only from E below, A and B leave by
+// boulder-free corridors. Satisfies C's Z1/Z2. Exit from A reaches G; exit from B returns to the start => LOSE.
+// With :state / port queries A can check one-way-ness etc.
+###########
+#a#T#b#####
+#.#.#.#####
+#.#.#.....#
+#.#@......#
+#.#########
+#........G#
+###########
+:zone 1 1 5 1

@@ -1,0 +1,9 @@
+// coin_lose + a boulder the hero can push onto landing cell b first (goodpos excludes boulders) => WIN
+##########
+####a...G#
+#@.T######
+#.##b.####
+#...0.####
+#.....####
+##########
+:zone 3 1 4 3

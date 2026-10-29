@@ -1,0 +1,7 @@
+// hero wins either way: both landings lead to G
+##########
+####a...G#
+#@.T####.#
+####b....#
+##########
+:zone 3 1 4 3

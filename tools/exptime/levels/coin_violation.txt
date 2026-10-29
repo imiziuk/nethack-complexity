@@ -1,0 +1,7 @@
+// the only way on is pushing the boulder onto the trap: design violation, move removed => LOSE
+##########
+####a...G#
+#@0T######
+####b#####
+##########
+:zone 3 1 4 3
