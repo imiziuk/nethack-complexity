@@ -38,7 +38,7 @@ local function key(k)
    nh.doturn(true);
 end
 
-local function build(map, boulders, start, soko, heavy)
+local function build_once(map, boulders, start, soko, heavy)
    des.reset_level();
    if (soko) then
       des.level_flags("noflip", "sokoban", "noteleport", "hardfloor", "solidify");
@@ -54,13 +54,22 @@ local function build(map, boulders, start, soko, heavy)
                          region_islev = true, dir = "both" });
    des.finalize_level();
    for _, v in pairs(nh.stairways()) do
-      error("W3 HARNESS: unexpected stairway at " .. v.x .. "," .. v.y);
+      des.terrain(v.x, v.y, ".");  -- DL1 branch stair from finalize (review-2 N2), as in src/test/testmove.lua
    end
    u.clear_inventory();
    if (heavy) then
       u.giveobj(obj.new("cursed loadstone"));
    end
-   check(hero_at(start[1], start[2]), "hero not placed on the start square");
+   return hero_at(start[1], start[2]);
+end
+
+-- harness retry: finalize places the DL1 branch stair at random; if it lands on the 1-cell start
+-- region the hero is not placed ("Couldn't place lregion"). Setup randomness only, not gadget behaviour.
+local function build(map, boulders, start, soko, heavy)
+   for attempt = 1, 10 do
+      if (build_once(map, boulders, start, soko, heavy)) then return; end
+   end
+   check(false, "hero not placed on the start square after 10 builds");
 end
 
 local ROOM = [[

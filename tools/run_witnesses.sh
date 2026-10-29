@@ -13,7 +13,10 @@ PREFIX="$WORK/install"
 mkdir -p "$WORK" "$HERE/build"
 
 if [ ! -x "$PREFIX/games/nethack" ] && [ ! -x "$PREFIX/nethack" ]; then
-  rsync -a --delete --exclude .git "$SRC/" "$WORK/nh/"
+  # fresh LF clone of the same tag (the Windows checkout has CRLF line endings, which break setup.sh)
+  rm -rf "$WORK/nh"
+  git clone -q --depth 1 --branch NetHack-5.0.0_Released https://github.com/NetHack/NetHack.git "$WORK/nh"
+  test "$(git -C "$WORK/nh" rev-parse HEAD)" = 16ff59115315917b93185d026aeefea06db9b0f4
   cd "$WORK/nh/sys/unix" && sh setup.sh hints/linux.500
   cd "$WORK/nh"
   make fetch-lua
@@ -24,35 +27,8 @@ if [ ! -x "$PREFIX/games/nethack" ] && [ ! -x "$PREFIX/nethack" ]; then
   sed -i "s/^WIZARDS=.*/WIZARDS=$USER/" "$PREFIX/lib/sysconf" || true
 fi
 HACKDIR="$PREFIX/lib"
-NH="$(ls "$PREFIX"/games/nethack "$PREFIX"/nethack 2>/dev/null | head -1)"
+NH="$PREFIX/games/nethack"; [ -x "$NH" ] || NH="$PREFIX/nethack"
+grep -q "^WIZARDS=.*$USER" "$HACKDIR/sysconf" || sed -i "s/^WIZARDS=.*/WIZARDS=$USER/" "$HACKDIR/sysconf"
 
-python3 - "$NH" "$HACKDIR" "$HERE/tools/witness" "$HERE/build/witness-results.txt" <<'PY'
-import sys, os, glob, shutil, pexpect
-nh, hackdir, wdir, out = sys.argv[1:5]
-res = []
-for f in sorted(glob.glob(os.path.join(wdir, '*.lua'))):
-    name = os.path.basename(f)
-    tmp = os.path.join(hackdir, name)
-    src = open(f).read().replace('\r\n', '\n')
-    open(tmp, 'w').write(src + '\nnh.pline("WITNESS DONE");\n')   # marker: reached the end without error()
-    env = dict(os.environ, NETHACKOPTIONS='pettype:none,!autopickup,!timed_delay,number_pad:0,!legacy,!news',
-               TERM='xterm', HOME=os.environ['HOME'])
-    p = pexpect.spawn(nh, ['-D', '-u', 'witness', '-p', 'valkyrie', '-r', 'human', '-g', 'female', '-a', 'neutral'],
-                      env=env, cwd=hackdir, encoding='latin-1', timeout=20, dimensions=(30, 100))
-    log = []
-    try:
-        p.expect(['welcome', 'Welcome', pexpect.TIMEOUT]); log.append(p.before)
-        p.send('\x1b'); p.send('#wizloadlua\r'); p.expect(['lua', 'file', pexpect.TIMEOUT])
-        p.send(name + '\r')
-        idx = p.expect(['WITNESS DONE', 'FAIL', 'HARNESS', 'rror', pexpect.TIMEOUT, pexpect.EOF])
-        log.append(p.before + str(p.after))
-        verdict = 'PASS' if idx == 0 else 'FAIL'
-    except Exception as e:
-        verdict, log = 'ERROR', log + [repr(e)]
-    finally:
-        p.terminate(force=True); os.remove(tmp)
-    res.append(f'{verdict}  {name}\n' + ''.join(map(str, log))[-2000:] + '\n' + '-' * 60)
-    print(verdict, name)
-open(out, 'w').write('\n'.join(res))
-PY
+python3 "$HERE/tools/witness_driver.py" "$NH" "$HACKDIR" "$HERE/tools/witness" "$HERE/build/witness-results.txt"
 echo "results: $HERE/build/witness-results.txt"

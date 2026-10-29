@@ -40,7 +40,7 @@ local MAP = [[
 -- back segment (2,4),(3,4); Q=(4,4); (4,5); C=(4,6); forward (5,6),(6,6),(7,6).
 -- (9,8) = sentinel pit cell, isolated by stone.
 
-local function build(start)
+local function build_once(start)
    des.reset_level();
    des.level_flags("noflip", "sokoban", "noteleport");
    des.level_init({ style = "solidfill", fg = " ", lit = true });
@@ -52,7 +52,16 @@ local function build(start)
    des.finalize_level();
    u.clear_inventory();
    u.giveobj(obj.new("cursed loadstone"));
-   check(hero_at(start[1], start[2]), "hero not placed");
+   return hero_at(start[1], start[2]);
+end
+
+-- harness retry: finalize places the DL1 branch stair at random; if it lands on the 1-cell start
+-- region the hero is not placed ("Couldn't place lregion"). Setup randomness only, not gadget behaviour.
+local function build(start)
+   for attempt = 1, 10 do
+      if (build_once(start)) then return; end
+   end
+   check(false, "hero not placed after 10 builds");
 end
 
 build({4, 1});

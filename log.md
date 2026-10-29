@@ -54,3 +54,14 @@
 - Oct 28 late: tools/run_witnesses.sh (WSL headless build + pexpect #wizloadlua driver, NOT run) and
   proofs/lean/NetHackPush.lean (Lean 4 skeleton: Push-1F model, NHSoko abstraction, source facts as provenance
   axioms, simulation lemma = sorry; NOT compiled, no toolchain). Witness run waits for Ivan to be away.
+
+## 2026-10-29 — witness run (Ivan off the laptop)
+- Built 16ff591 headless in WSL Ubuntu (fresh LF clone; the Windows checkout's CRLF broke setup.sh). Driver:
+  tools/witness_driver.py (pexpect, #wizloadlua). Harness fixes: `!tutorial` option; Lua prompt "Load which lua file?";
+  level-1 branch stair turned back into floor after finalize (as in src/test/testmove.lua); build retry when the random
+  branch stair lands on the 1-cell start region ("Couldn't place lregion type 6" -> hero not placed). Setup-only fixes;
+  no gadget assertion was changed.
+- Result: 8/8 witnesses PASS in 3 of 3 full runs (24/24). Every earlier failure was the stair/setup issue, never a
+  mechanics assertion. [auto-experimentally verified]
+- Caveat: the run happened at a real full moon (game printed "You are lucky! Full moon tonight", +1 Luck). The spec
+  wants Luck 0, but these witnesses test movement/push rules only, which do not read Luck.

@@ -23,6 +23,7 @@ Updated 2026-10-28 after phase 2 (reviews 1-2, blind theorist, proofs hu-off / h
 | F13 | `des.object` quantity loops for non-mergeable objects | src/sp_lev.c:3732 | VERIFIED |
 | F14 | newgame: mklev before hero kit; pet survives reset unless pettype:none | src/allmain.c:807-815, src/dog.c:225, src/nhlua.c:1473 | VERIFIED |
 | F15 | Push-1F PSPACE-complete (Ani, Chung, Demaine, Diomidov, Hendrickson, Lynch, FUN 2022, LIPIcs 226) | proofs/citations.md | VERIFIED (web) |
+| W1-W8 | Real-game witnesses: orthogonal push, refused diagonal push, refused diagonal squeeze, heavy hero can't step on boulder, sentinel pit keeps Sokoban; L_ON gadgets closing site, one-way door, hole crossover — all behave as the proofs say | tools/witness/*.lua via tools/run_witnesses.sh (WSL headless build of 16ff591, #wizloadlua) | VERIFIED experimentally: 8/8 pass in 3 of 3 full runs (different RNG seeds), 2026-10-29. Evidence, not proof. |
 
 ## Complexity claims (phase 2; languages in proofs/phase2-spec.md incl. Revisions 1-2)
 

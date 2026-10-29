@@ -30,10 +30,10 @@ local MAP = {
    "    .    ",   -- q=(4,2)
    "    .    ",
    "    .    ",
-   "        .",
+   "  .     .",   -- (2,5): sealed spare cell so finalize can place the DL1 branch stair
 };
 
-local function build(start)
+local function build_once(start)
    des.reset_level();
    des.level_flags("noflip", "sokoban", "noteleport");
    des.level_init({ style = "solidfill", fg = " ", lit = true });
@@ -43,9 +43,21 @@ local function build(start)
    des.teleport_region({ region = { start[1] + OX, start[2] + OY, start[1] + OX, start[2] + OY },
                          region_islev = true, dir = "both" });
    des.finalize_level();
+   for _, v in pairs(nh.stairways()) do
+      des.terrain(v.x, v.y, ".");  -- DL1 branch stair from finalize (review-2 N2)
+   end
    u.clear_inventory();
    u.giveobj(obj.new("cursed loadstone"));
-   check(hero_at(start[1], start[2]), "hero not placed");
+   return hero_at(start[1], start[2]);
+end
+
+-- harness retry: finalize places the DL1 branch stair at random; if it lands on the 1-cell start
+-- region the hero can't be placed ("Couldn't place lregion"). Setup randomness only, not gadget behaviour.
+local function build(start)
+   for attempt = 1, 10 do
+      if (build_once(start)) then return; end
+   end
+   check(false, "hero not placed after 10 builds");
 end
 
 -- Test 1: from the q-side

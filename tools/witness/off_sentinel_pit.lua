@@ -47,7 +47,7 @@ local MAP = [[
 |.....|-|
 ---------]];
 
-local function build(sentinel)
+local function build_once(sentinel)
    des.reset_level();
    des.level_flags("noflip", "sokoban", "noteleport", "hardfloor", "solidify");
    des.level_init({ style = "solidfill", fg = " ", lit = true });
@@ -63,11 +63,20 @@ local function build(sentinel)
                          region_islev = true, dir = "both" });
    des.finalize_level();
    for _, v in pairs(nh.stairways()) do
-      error("W5 HARNESS: unexpected stairway at " .. v.x .. "," .. v.y);
+      des.terrain(v.x, v.y, ".");  -- DL1 branch stair from finalize (review-2 N2), as in src/test/testmove.lua
    end
    u.clear_inventory();
    u.giveobj(obj.new("cursed loadstone"));
-   check(hero_at(1, 1), "hero not placed on (1,1)");
+   return hero_at(1, 1);
+end
+
+-- harness retry: finalize places the DL1 branch stair at random; if it lands on the 1-cell start
+-- region the hero is not placed ("Couldn't place lregion"). Setup randomness only, not gadget behaviour.
+local function build(sentinel)
+   for attempt = 1, 10 do
+      if (build_once(sentinel)) then return; end
+   end
+   check(false, "hero not placed on (1,1) after 10 builds");
 end
 
 local function fill_and_walk()
