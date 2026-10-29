@@ -51,3 +51,6 @@
 - Review 2 (proofs/review-2.md): FATAL-as-written: starting pet survives reset [orch-verified dog.c:225, nhlua.c:1473,
   cmd.c:1047]; repaired with pettype:none (spec Revision 2). All three theorems survive with the repair.
 - Phase 2 result: L_ON* NP-complete, L_OFF^W PSPACE-complete (both STRONG, not machine-checked). 13 agents total.
+- Oct 28 late: tools/run_witnesses.sh (WSL headless build + pexpect #wizloadlua driver, NOT run) and
+  proofs/lean/NetHackPush.lean (Lean 4 skeleton: Push-1F model, NHSoko abstraction, source facts as provenance
+  axioms, simulation lemma = sorry; NOT compiled, no toolchain). Witness run waits for Ivan to be away.
