@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Reduction Engine</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;600&family=Spectral:ital,wght@0,400;0,600;0,700;1,400&family=VT323&display=swap">
+<style>
+:root{
+  --paper:#e9edee; --sheet:#f6f8f8; --ink:#192227; --muted:#53626a; --rule:#c4cdd1; --accent:#2b6a6e; --accent-ink:#fff;
+  --ok:#23704a; --bad:#b0281f; --warn:#8a5b00;
+  --tty-bg:#14181c; --tty-fg:#cfd8dc; --tty-dim:#5c6970;
+  --f-display:"Spectral",Georgia,serif; --f-body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace; --f-tty:"VT323","IBM Plex Mono",ui-monospace,monospace;
+  color-scheme:light;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--paper:#121619;--sheet:#1a2024;--ink:#dfe5e8;--muted:#95a3ab;--rule:#2e383e;--accent:#73b9bb;--accent-ink:#0e1416;--ok:#5fc48f;--bad:#f07a70;--warn:#e5b450;--tty-bg:#0b0d10;color-scheme:dark}}
+:root[data-theme="dark"]{--paper:#121619;--sheet:#1a2024;--ink:#dfe5e8;--muted:#95a3ab;--rule:#2e383e;--accent:#73b9bb;--accent-ink:#0e1416;--ok:#5fc48f;--bad:#f07a70;--warn:#e5b450;--tty-bg:#0b0d10;color-scheme:dark}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:1rem;line-height:1.55;margin:0}
+.wrap{max-width:64rem;margin:0 auto;padding:1.2rem 16px 3rem}
+nav.top{display:flex;flex-wrap:wrap;gap:.3rem 1.2rem;font-size:.9rem;border-bottom:1px solid var(--rule);padding-bottom:.6rem;margin-bottom:1.2rem}
+nav.top a{color:var(--accent);text-decoration:none}
+nav.top a:hover{text-decoration:underline}
+nav.top b{font-weight:700}
+h1{font-family:var(--f-display);font-weight:700;font-size:clamp(1.8rem,5vw,2.5rem);margin:0 0 .4rem;line-height:1.15}
+h2{font-family:var(--f-display);font-weight:600;font-size:1.3rem;margin:0 0 .5rem}
+h2 .n{color:var(--muted);font-weight:400;margin-right:.35rem}
+p{margin:0 0 .8rem;max-width:46rem}
+code,kbd{font-family:var(--f-mono);font-size:.88em}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.lede{font-size:1.04rem}
+section.panel{background:var(--sheet);border:1px solid var(--rule);padding:1rem 1.1rem 1.1rem;margin:1.1rem 0;min-width:0}
+.cap{font-size:.92rem;color:var(--muted);max-width:none}
+.cap b,.cap i{color:var(--ink)}
+.loadbar{display:flex;align-items:center;gap:.7rem;font-size:.92rem;border:1px solid var(--rule);background:var(--sheet);padding:.55rem .8rem;margin:.8rem 0}
+.dot{width:.7rem;height:.7rem;border-radius:50%;background:var(--warn);flex:none}
+.dot.ok{background:var(--ok)} .dot.bad{background:var(--bad)}
+.dot.busy{animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.25}}
+@media (prefers-reduced-motion: reduce){.dot.busy{animation:none}}
+.inrow{display:flex;flex-wrap:wrap;gap:.5rem;align-items:stretch}
+#formula{flex:1 1 20rem;min-width:0;font:400 1rem/1.4 var(--f-mono);color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:3px;padding:.55rem .65rem;resize:vertical;min-height:2.6rem}
+.btn{font:700 .9rem/1 var(--f-body);color:var(--accent-ink);background:var(--accent);border:1px solid var(--accent);border-radius:3px;padding:.6rem 1rem;cursor:pointer}
+.btn[disabled]{opacity:.5;cursor:not-allowed}
+.btn.ghost{background:transparent;color:var(--accent)}
+.presets{display:flex;flex-wrap:wrap;gap:.35rem;margin:.7rem 0 .2rem}
+.presets button{font:600 .78rem/1.2 var(--f-body);text-align:left;color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:3px;padding:.4rem .55rem;cursor:pointer;max-width:100%}
+.presets button small{display:block;font:400 .72rem/1.3 var(--f-mono);color:var(--muted);overflow-wrap:anywhere}
+.presets button[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.presets .grp{flex-basis:100%;font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-top:.3rem}
+details.help{font-size:.9rem;margin-top:.6rem}
+details.help summary{cursor:pointer;color:var(--accent)}
+details.help ul{margin:.4rem 0;padding-left:1.2rem}
+.parsed{font:400 .95rem/1.5 var(--f-mono);margin:.7rem 0 0;overflow-wrap:anywhere}
+.err{border-left:3px solid var(--bad);padding:.5rem .8rem;margin:.7rem 0 0;background:color-mix(in srgb,var(--bad) 8%,transparent);font-size:.93rem}
+.err b{color:var(--bad)}
+.err pre{font:.78rem/1.4 var(--f-mono);white-space:pre-wrap;margin:.4rem 0 0;max-height:12rem;overflow:auto}
+.note{border-left:3px solid var(--accent);padding:.4rem .8rem;margin:.7rem 0 0;font-size:.9rem}
+.tag{font:600 .66rem/1 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;padding:.2em .45em;border:1px solid currentColor;border-radius:2px;white-space:nowrap}
+.tag.sat{color:var(--ok)} .tag.unsat{color:var(--bad)} .tag.err{color:var(--warn)}
+.scrollx{overflow-x:auto;max-width:100%}
+#drawing svg{display:block;font-family:var(--f-mono)}
+.verdict{display:grid;grid-template-columns:repeat(auto-fit,minmax(14rem,1fr));gap:.8rem;margin:.5rem 0 .7rem}
+.vbox{border:1px solid var(--rule);background:var(--paper);padding:.6rem .8rem;min-width:0}
+.vbox .k{font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.vbox .v{font-family:var(--f-display);font-size:1.25rem;font-weight:600;overflow-wrap:anywhere}
+.vbox .v.ok{color:var(--ok)} .vbox .v.bad{color:var(--bad)}
+.assign{font-family:var(--f-mono);font-size:.9rem;overflow-wrap:anywhere}
+/* console */
+.console{background:var(--tty-bg);color:var(--tty-fg);border-radius:4px;padding:.8rem;margin:.6rem 0}
+.ctop{display:flex;flex-wrap:wrap;gap:.5rem .8rem;align-items:center;justify-content:space-between}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid #39434a;border-radius:3px;overflow:hidden}
+.seg button{font:600 .78rem/1 var(--f-body);color:var(--tty-fg);background:transparent;border:0;border-right:1px solid #39434a;padding:.5rem .65rem;cursor:pointer}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:#73b9bb;color:#0e1416}
+.msg{font-family:var(--f-tty);font-size:1.3rem;min-height:1.6rem;color:#fff;margin:.35rem 0;overflow-wrap:anywhere}
+.stage{display:grid;grid-template-columns:minmax(0,1fr) 13rem;gap:.8rem;align-items:start}
+@media (max-width:760px){.stage{grid-template-columns:1fr}}
+#view{width:100%;height:auto;display:block;image-rendering:pixelated;background:#000;border-radius:2px;cursor:crosshair;touch-action:manipulation}
+#mini{width:100%;height:auto;display:block;image-rendering:pixelated;background:#000;border:1px solid #2b3338;cursor:pointer}
+.side{display:flex;flex-direction:column;gap:.6rem;min-width:0}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:.3rem;max-width:12rem}
+.pad button,.ctl button{font:600 .9rem/1 var(--f-mono);color:var(--tty-fg);background:#232a30;border:1px solid #39434a;border-radius:3px;height:2.6rem;cursor:pointer}
+.pad button:active,.ctl button:active{background:#3a454d}
+.ctl{display:flex;flex-wrap:wrap;gap:.3rem}
+.ctl button{height:auto;padding:.45rem .6rem;font-family:var(--f-body);font-size:.78rem}
+.ctl button[aria-pressed="true"]{background:#73b9bb;color:#0e1416;border-color:#73b9bb}
+.stat{font-family:var(--f-tty);font-size:1.1rem;color:#8c9aa2}
+.hover{font-family:var(--f-mono);font-size:.74rem;color:#b9c6cc;min-height:2.4em;margin-top:.3rem;overflow-wrap:anywhere}
+.small{font-size:.78rem;color:#9aa8b0;margin:.4rem 0 0}
+.legend{display:grid;grid-template-columns:1fr;gap:.15rem;font-size:.74rem;color:#b9c6cc}
+.legend span{display:flex;gap:.4rem;align-items:center}
+.legend i{display:inline-block;width:.85rem;height:.85rem;border-radius:2px;flex:none}
+.won{border:1px solid #f07a70;background:#2a1513;color:#ffd9d5;padding:.6rem .8rem;margin:.5rem 0;border-radius:3px}
+.won.good{border-color:#5fc48f;background:#12261b;color:#d4f3e1}
+.won textarea{width:100%;min-height:4rem;font:.75rem/1.35 var(--f-mono);background:#0b0d10;color:#dfe5e8;border:1px solid #39434a;margin-top:.4rem}
+/* stats */
+table.stats{border-collapse:collapse;width:100%;font-size:.9rem}
+table.stats th,table.stats td{border-bottom:1px solid var(--rule);padding:.35rem .5rem;text-align:left;vertical-align:top}
+table.stats th{font-size:.75rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:700}
+table.stats td.num{font-family:var(--f-mono);text-align:right;white-space:nowrap}
+table.stats td.f{font-family:var(--f-mono);font-size:.82rem;color:var(--muted)}
+.hold{color:var(--ok);font-weight:700} .fail{color:var(--bad);font-weight:700}
+.dl{display:flex;flex-wrap:wrap;gap:.5rem;margin:.4rem 0 .7rem}
+.dl a{font:600 .85rem/1 var(--f-body);color:var(--accent);border:1px solid var(--accent);border-radius:3px;padding:.5rem .75rem;text-decoration:none}
+#luaText{width:100%;height:16rem;font:.75rem/1.35 var(--f-mono);color:var(--ink);background:var(--paper);border:1px solid var(--rule);border-radius:3px;padding:.5rem;white-space:pre;overflow:auto}
+[hidden]{display:none!important}
+footer{font-size:.82rem;color:var(--muted);margin-top:2rem;border-top:1px solid var(--rule);padding-top:.8rem}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="top" aria-label="Site"><a href="index.html">Paper</a><b>Engine</b><a href="arena.html">Arena</a></nav>
+  <h1>Reduction engine</h1>
+  <p class="lede">Type a monotone 3-SAT formula. This page runs the reduction's actual generator, <code>gen_on_instance.py</code>, unmodified, in Python compiled to WebAssembly (Pyodide). It returns the exact NetHack level the NP-hardness proof builds for that formula. Then you can play the level. The proof claims: the goal <b>G</b> is reachable from the start <b>@</b> exactly when the formula is satisfiable.</p>
+
+  <div class="loadbar" id="loadbar" role="status" aria-live="polite"><span class="dot busy" id="loaddot"></span><span id="loadmsg">Loading Python (Pyodide 0.26.4, about 10 MB on first visit; the browser cache keeps it afterwards)…</span></div>
+
+  <section class="panel" aria-labelledby="h-in">
+    <h2 id="h-in">Formula</h2>
+    <div class="inrow">
+      <textarea id="formula" rows="1" spellcheck="false" autocomplete="off" aria-label="Monotone 3-SAT formula">(x1 ∨ x2) ∧ (¬x1 ∨ ¬x2)</textarea>
+      <button class="btn" id="go" type="button" disabled>Generate level</button>
+      <button class="btn ghost" id="cancel" type="button" hidden>Cancel</button>
+    </div>
+    <div class="presets" id="presets"></div>
+    <details class="help">
+      <summary>Syntax, conditions and size limits</summary>
+      <ul>
+        <li><b>Logical form:</b> <code>(x1 ∨ x2) ∧ (¬x1 ∨ ¬x2)</code>. Also accepted: <code>v</code>, <code>|</code>, <code>or</code> for ∨; <code>&amp;</code>, <code>and</code>, <code>,</code> for ∧; <code>~</code>, <code>!</code>, <code>-</code>, <code>not</code> for ¬. A single-literal clause needs no parentheses: <code>x1 ∧ ¬x1</code>.</li>
+        <li><b>DIMACS-like form:</b> <code>1 2, -1 -2</code>. Clauses are separated by <code>,</code>, <code>;</code> or new lines, literals by spaces.</li>
+        <li><b>Conditions (the source problem, §4.1 P1–P3):</b> every clause has 1 to 3 <i>distinct</i> variables. All its literals have the same sign (<i>monotone</i>: positive clauses are drawn above the variable line, negative ones below). The variables are x1…xn with n the largest index. Variables that occur in no clause are deleted by the generator (this does not change satisfiability or planarity). The clause/leg system must also have a <i>planar</i> drawing: the generator searches for one and fails if none exists.</li>
+        <li><b>Limits here:</b> n ≤ 8, m ≤ 8 clauses, and at most 50,000 candidate leg orders per side. The generator is polynomial once the drawing is given (§4.6). Without a drawing it brute-forces the leg order (∏ over variables of k<sub>v</sub>! candidates per side, k<sub>v</sub> = number of clauses on that side containing x<sub>v</sub>). Python in WebAssembly is several times slower than native, and the level for m = 8 already has about 10<sup>4</sup>–10<sup>5</sup> floor cells and a multi-megabyte Lua script. The limits keep the page responsive. They are not a limit of the reduction.</li>
+      </ul>
+    </details>
+    <div id="parsed" class="parsed" hidden></div>
+    <div id="errors"></div>
+  </section>
+
+  <div id="out" hidden>
+    <section class="panel" aria-labelledby="h-a">
+      <h2 id="h-a"><span class="n">a.</span>Planar drawing used by the generator</h2>
+      <div class="scrollx" id="drawing"></div>
+      <p class="cap" id="capA"></p>
+    </section>
+
+    <section class="panel" aria-labelledby="h-b">
+      <h2 id="h-b"><span class="n">b.</span>Satisfiability (independent brute force in JavaScript)</h2>
+      <div class="verdict" id="verdict"></div>
+      <p class="cap" id="capB"></p>
+    </section>
+
+    <section class="panel" aria-labelledby="h-c">
+      <h2 id="h-c"><span class="n">c.</span>The generated level</h2>
+      <p class="cap" id="capC"></p>
+      <div class="console">
+        <div class="ctop">
+          <div class="seg" role="group" aria-label="Map style" id="viewmode"><button type="button" data-v="text" aria-pressed="false">Text</button><button type="button" data-v="tiles" aria-pressed="true">Tiles</button></div>
+          <div class="ctl"><button type="button" id="overlay" aria-pressed="false">Show structure</button></div>
+        </div>
+        <p class="msg" id="msg" aria-live="polite"></p>
+        <div id="wonbox"></div>
+        <div class="stage">
+          <div><canvas id="view" width="960" height="600" tabindex="0" aria-label="Map view. Use h j k l y u b n or arrow keys."></canvas>
+            <div class="stat" id="stat"></div>
+            <div class="hover" id="hover">Point at a cell to see its role in the construction.</div></div>
+          <div class="side">
+            <canvas id="mini" aria-label="Whole-level minimap; click to look there"></canvas>
+            <div class="legend" id="legend"></div>
+            <div class="pad" aria-label="Move pad">
+              <button type="button" data-k="y" aria-label="northwest">↖</button><button type="button" data-k="k" aria-label="north">↑</button><button type="button" data-k="u" aria-label="northeast">↗</button>
+              <button type="button" data-k="h" aria-label="west">←</button><button type="button" data-k="." aria-label="wait">·</button><button type="button" data-k="l" aria-label="east">→</button>
+              <button type="button" data-k="b" aria-label="southwest">↙</button><button type="button" data-k="j" aria-label="south">↓</button><button type="button" data-k="n" aria-label="southeast">↘</button>
+            </div>
+            <div class="ctl"><button type="button" id="undo">Undo</button><button type="button" id="reset">Reset</button><button type="button" id="zoom">Zoom 1×</button><button type="button" id="auto" hidden>Show solution</button></div>
+          </div>
+        </div>
+        <p class="small">Click the map, then use <kbd>h j k l y u b n</kbd> or the arrow keys (Shift + direction runs until a push or a fork). Backspace undoes. Clicking the minimap moves the view there; any move recentres it on @.</p>
+      </div>
+      <p class="cap" id="capC2"></p>
+    </section>
+
+    <section class="panel" aria-labelledby="h-d">
+      <h2 id="h-d"><span class="n">d.</span>Size of this level against the §4.6 bounds</h2>
+      <div class="scrollx"><table class="stats" id="stats"></table></div>
+      <p class="cap" id="capD"></p>
+    </section>
+
+    <section class="panel" aria-labelledby="h-e">
+      <h2 id="h-e"><span class="n">e.</span>The level as NetHack Lua</h2>
+      <p class="cap" id="capE"></p>
+      <div class="dl" id="dl"></div>
+      <textarea id="luaText" readonly spellcheck="false" aria-label="Lua level script"></textarea>
+    </section>
+  </div>
+
+  <footer id="foot">The generator file is fetched from <code>engine/gen_on_instance.py</code> (a byte-identical copy of <code>tools/gen_on_instance.py</code>). <code>engine/driver.py</code> calls the functions its <code>main()</code> calls. Nothing is sent to a server: everything runs in this tab.</footer>
+</div>
+<script src="engine.js"></script>
+</body>
+</html>

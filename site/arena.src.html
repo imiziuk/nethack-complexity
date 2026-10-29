@@ -1,0 +1,265 @@
+<title>NetHack Reduction Arena</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;600&family=Spectral:wght@600;700&family=VT323&display=swap">
+<style>
+/* Layout: a play console (map + minimap + controls) under a short briefing; same palette as the Complexity Explorer. */
+:root{
+  --paper:#e9edee; --sheet:#f6f8f8; --ink:#192227; --muted:#53626a; --rule:#c4cdd1; --accent:#2b6a6e; --accent-ink:#fff;
+  --ok:#23704a; --bad:#b0281f; --warn:#8a5b00;
+  --tty-bg:#14181c; --tty-fg:#cfd8dc; --tty-dim:#5c6970; --tty-wall:#93a8b3; --tty-boulder:#f0a35e; --tty-goal:#f2cf4a; --tty-hole:#c78bf0;
+  --f-display:"Spectral",Georgia,serif; --f-body:"Atkinson Hyperlegible",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace; --f-tty:"VT323","IBM Plex Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--paper:#121619;--sheet:#1a2024;--ink:#dfe5e8;--muted:#95a3ab;--rule:#2e383e;--accent:#73b9bb;--accent-ink:#0e1416;--ok:#5fc48f;--bad:#f07a70;--warn:#e5b450;--tty-bg:#0b0d10;color-scheme:dark}}
+:root[data-theme="dark"]{--paper:#121619;--sheet:#1a2024;--ink:#dfe5e8;--muted:#95a3ab;--rule:#2e383e;--accent:#73b9bb;--accent-ink:#0e1416;--ok:#5fc48f;--bad:#f07a70;--warn:#e5b450;--tty-bg:#0b0d10;color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:1.0rem;line-height:1.55;margin:0}
+.wrap{max-width:62rem;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:1.6rem 3rem}
+h1{font-family:var(--f-display);font-size:clamp(1.9rem,5vw,2.6rem);margin:0 0 .4rem;text-wrap:balance}
+h2{font-family:var(--f-display);font-size:1.3rem;margin:1.4rem 0 .5rem}
+p{margin:0 0 .8rem;max-width:44rem}
+code{font-family:var(--f-mono);font-size:.88em}
+a{color:var(--accent)}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.brief{display:grid;grid-template-columns:repeat(auto-fit,minmax(17rem,1fr));gap:1rem;margin:1rem 0}
+.card{border:1px solid var(--rule);background:var(--sheet);padding:.8rem 1rem;min-width:0}
+.card h3{font-family:var(--f-display);font-size:1.05rem;margin:0 0 .35rem}
+.card p,.card li{font-size:.92rem}
+.card ul{margin:0;padding-left:1.1rem}
+.seg{display:inline-flex;flex-wrap:wrap;border:1px solid var(--rule);border-radius:3px;overflow:hidden;background:var(--sheet)}
+.seg button{font:600 .8rem/1 var(--f-body);color:var(--ink);background:transparent;border:0;border-right:1px solid var(--rule);padding:.5rem .65rem;cursor:pointer}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.picker{display:flex;flex-wrap:wrap;gap:.4rem;margin:.6rem 0}
+.picker button{font:600 .8rem/1.2 var(--f-body);text-align:left;color:var(--ink);background:var(--sheet);border:1px solid var(--rule);border-radius:3px;padding:.45rem .6rem;cursor:pointer}
+.picker button small{display:block;font-weight:400;color:var(--muted);font-size:.72rem}
+.picker button[aria-pressed="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.tag{font:600 .66rem/1 var(--f-mono);letter-spacing:.06em;text-transform:uppercase;padding:.2em .45em;border:1px solid currentColor;border-radius:2px}
+.tag.sat{color:var(--ok)} .tag.unsat{color:var(--bad)} .tag.open{color:var(--warn)}
+.console{background:var(--tty-bg);color:var(--tty-fg);border-radius:4px;padding:.8rem;margin-top:.8rem}
+.top{display:flex;flex-wrap:wrap;gap:.5rem 1rem;align-items:baseline;justify-content:space-between}
+.formula{font-family:var(--f-mono);font-size:.95rem;color:#fff}
+.msg{font-family:var(--f-tty);font-size:1.3rem;min-height:1.6rem;color:#fff;margin:.3rem 0;overflow-wrap:anywhere}
+.stage{display:grid;grid-template-columns:minmax(0,1fr) 13rem;gap:.8rem;align-items:start}
+@media (max-width:760px){.stage{grid-template-columns:1fr}}
+#view{width:100%;height:auto;display:block;image-rendering:pixelated;background:#000;border-radius:2px;cursor:pointer;touch-action:manipulation}
+#mini{width:100%;height:auto;display:block;image-rendering:pixelated;background:#000;border:1px solid #2b3338}
+.side{display:flex;flex-direction:column;gap:.6rem;min-width:0}
+.pad{display:grid;grid-template-columns:repeat(3,1fr);gap:.3rem;max-width:12rem}
+.pad button,.ctl button{font:600 .9rem/1 var(--f-mono);color:var(--tty-fg);background:#232a30;border:1px solid #39434a;border-radius:3px;height:2.7rem;cursor:pointer}
+.pad button:active,.ctl button:active{background:#3a454d}
+.ctl{display:flex;flex-wrap:wrap;gap:.3rem}
+.ctl button{height:auto;padding:.45rem .6rem;font-family:var(--f-body);font-size:.78rem}
+.stat{font-family:var(--f-tty);font-size:1.1rem;color:var(--tty-dim)}
+.small{font-size:.78rem;color:#9aa8b0}
+.legend{display:flex;flex-wrap:wrap;gap:.2rem .8rem;font-size:.78rem;color:#9aa8b0}
+.legend i{font-style:normal;font-family:var(--f-tty);font-size:1.1rem}
+</style>
+
+<div class="wrap">
+  <h1>Reduction Arena</h1>
+  <p>These are real levels built by the NP-hardness reduction (<code>tools/gen_on_instance.py</code>): each one turns a small logic formula into a NetHack boulder maze. The rule the proof claims: <b>you can reach the goal G exactly when the formula can be made true.</b> On a solvable level, find the route. On an impossible one, the proof says there is no route, so <b>if you ever reach G on an UNSAT level, you have found a bug in the proof.</b> That is the useful kind of intuition here.</p>
+
+  <div class="brief">
+    <div class="card"><h3>How a level is laid out</h3><ul>
+      <li>You start at the left end of the long <b>main line</b> (middle of the map). Walk right along it.</li>
+      <li>At each variable the line splits in two. <b>Top branch = x false</b>, <b>bottom branch = x true</b>. Pick one; they rejoin.</li>
+      <li>Each branch has boulders you are forced to shove sideways. Each shove permanently blocks a <b>clause path</b>: the top branch blocks paths for literal x, the bottom one for ¬x.</li>
+      <li>After the last variable you climb into the <b>clause checks</b> (positive clauses above the line, negative below). Each clause has up to 3 parallel paths, one per literal. You need one still open path through <b>every</b> clause to reach G.</li>
+    </ul></div>
+    <div class="card"><h3>Rules (exactly the proof's)</h3><ul>
+      <li>Push a boulder by walking into it orthogonally, if the square behind is free.</li>
+      <li>No diagonal pushes; no diagonal squeeze between two boulders/walls.</li>
+      <li>Walking into a hole <i style="color:var(--tty-hole)">^</i> = you fall off the level = lose (undo is allowed here).</li>
+      <li>Pushing a boulder into a hole plugs it, making floor. Crossovers use this: one-time passages.</li>
+      <li>Hunger is ignored here. That only gives you more power, so it is fine for bug hunting.</li>
+    </ul></div>
+    <div class="card"><h3>How to break it</h3><ul>
+      <li>Look for a route on a <span class="tag unsat">UNSAT</span> level: skip a forced shove, sneak a boulder into the wrong corridor, cross a path twice, plug a hole from the wrong side.</li>
+      <li>The 5 <span class="tag open">open</span> levels are the ones the computer has not finished checking (over 26 million states each). A route there would be a real counterexample.</li>
+      <li>Not finding one proves nothing by itself, but it tells us where to look.</li>
+    </ul></div>
+  </div>
+
+  <h2>Pick a level</h2>
+  <div class="picker" id="picker"></div>
+
+  <div class="console">
+    <div class="top">
+      <div class="formula" id="formula"></div>
+      <div class="seg" role="group" aria-label="Map style" id="viewmode"><button type="button" data-v="text" aria-pressed="false">Text</button><button type="button" data-v="tiles" aria-pressed="true">Tiles</button></div>
+    </div>
+    <p class="msg" id="msg" aria-live="polite"></p>
+    <div class="stage">
+      <div><canvas id="view" width="960" height="600" tabindex="0" aria-label="Map view. Use h j k l y u b n or arrow keys."></canvas>
+        <div class="stat" id="stat"></div></div>
+      <div class="side">
+        <canvas id="mini" aria-label="Whole-level minimap"></canvas>
+        <div class="legend"><span><i style="color:#fff">●</i> you</span><span><i style="color:var(--tty-goal)">●</i> goal G</span><span><i style="color:var(--tty-boulder)">■</i> boulder</span><span><i style="color:var(--tty-hole)">■</i> hole</span><span><i style="color:#4c7a86">■</i> visited</span></div>
+        <div class="pad" aria-label="Move pad">
+          <button type="button" data-k="y" aria-label="northwest">↖</button><button type="button" data-k="k" aria-label="north">↑</button><button type="button" data-k="u" aria-label="northeast">↗</button>
+          <button type="button" data-k="h" aria-label="west">←</button><button type="button" data-k="." aria-label="wait">·</button><button type="button" data-k="l" aria-label="east">→</button>
+          <button type="button" data-k="b" aria-label="southwest">↙</button><button type="button" data-k="j" aria-label="south">↓</button><button type="button" data-k="n" aria-label="southeast">↘</button>
+        </div>
+        <div class="ctl"><button type="button" id="undo">Undo</button><button type="button" id="reset">Reset</button><button type="button" id="zoom">Zoom</button><button type="button" id="auto" hidden>Show solution</button></div>
+        <p class="small" id="note"></p>
+      </div>
+    </div>
+    <p class="small">Click the map, then use hjkl / yubn or arrow keys (Shift + key runs until something changes). Backspace = undo. The same keys as NetHack.</p>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+var LEVELS=__LEVELS__;
+var TILE_URI=__TILES__;
+var IMG={}; Object.keys(TILE_URI).forEach(function(k){ var i=new Image(); i.onload=function(){ draw(); }; i.src=TILE_URI[k]; IMG[k]=i; });
+var DIRS={h:[-1,0],j:[0,1],k:[0,-1],l:[1,0],y:[-1,-1],u:[1,-1],b:[-1,1],n:[1,1]};
+var ARROWS={ArrowLeft:"h",ArrowDown:"j",ArrowUp:"k",ArrowRight:"l",Home:"y",PageUp:"u",End:"b",PageDown:"n"};
+var view=document.getElementById("view"), vx=view.getContext("2d"), mini=document.getElementById("mini"), mx=mini.getContext("2d");
+var msgEl=document.getElementById("msg"), statEl=document.getElementById("stat");
+var L, W, H, solid, wallK, glyph, boulders, holes, hero, goal, visited, hist, turns, pushes, dead, won, cur=0, tiles=true, zoom=1, autoTimer=null;
+function idx(x,y){ return y*W+x; }
+function inb(x,y){ return x>=0&&y>=0&&x<W&&y<H; }
+function isSolid(x,y){ return !inb(x,y)||solid[idx(x,y)]; }
+function wallKeyAt(x,y){
+  function nearFloor(a,b){ for(var i=-1;i<=1;i++) for(var j=-1;j<=1;j++){ if((i||j)&&!isSolid(a+i,b+j)) return true; } return false; }
+  if(!nearFloor(x,y)) return "";
+  function w(a,b){ return isSolid(a,b)&&inb(a,b)&&nearFloor(a,b); }
+  var N=w(x,y-1),S=w(x,y+1),E=w(x+1,y),Wd=w(x-1,y),n=N+S+E+Wd;
+  if(n===4) return "cross"; if(n===3) return !N?"td":!S?"tu":!E?"tlw":"trw";
+  if(N&&S) return "v"; if(E&&Wd) return "h";
+  if(S&&E) return "tl"; if(S&&Wd) return "tr"; if(N&&E) return "bl"; if(N&&Wd) return "br";
+  return (N||S)?"v":"h";
+}
+function load(i){
+  stopAuto(); cur=i; L=LEVELS[i]; H=L.rows.length; W=L.rows[0].length;
+  solid=new Uint8Array(W*H); glyph=new Array(W*H); boulders=new Uint8Array(W*H); holes=new Uint8Array(W*H); visited=new Uint8Array(W*H);
+  for(var y=0;y<H;y++) for(var x=0;x<W;x++){
+    var ch=L.rows[y][x], k=idx(x,y); glyph[k]=ch;
+    if(ch===" "||ch==="p"||ch==="b") solid[k]=1;          // pit and stair pocket are sealed: never reachable
+    if(ch==="0") boulders[k]=1;
+    if(ch==="^") holes[k]=1;
+    if(ch==="@") hero=[x,y];
+    if(ch==="G") goal=[x,y];
+  }
+  wallK=new Array(W*H);
+  for(var y2=0;y2<H;y2++) for(var x2=0;x2<W;x2++){ var k2=idx(x2,y2); if(solid[k2]) wallK[k2]=glyph[k2]==="p"?"pit":glyph[k2]==="b"?"stairs":wallKeyAt(x2,y2); }
+  hist=[]; turns=1; pushes=0; dead=false; won=false; visited[idx(hero[0],hero[1])]=1;
+  mini.width=W; mini.height=H;
+  document.getElementById("formula").textContent="φ = "+L.formula+"   ("+L.status+")";
+  document.getElementById("note").textContent=L.note;
+  document.getElementById("auto").hidden=!L.moves;
+  say("Level "+(i+1)+": walk from the start (left end of the main line) to G.");
+  document.querySelectorAll("#picker button").forEach(function(b,j){ b.setAttribute("aria-pressed",String(j===i)); });
+  draw();
+}
+function snap(){ return {hero:hero.slice(),b:boulders.slice(),h:holes.slice(),turns:turns,pushes:pushes,dead:dead,won:won}; }
+function undo(){ stopAuto(); var s=hist.pop(); if(!s) return; hero=s.hero; boulders=s.b; holes=s.h; turns=s.turns; pushes=s.pushes; dead=s.dead; won=s.won; say("Undone."); draw(); }
+function bad(x,y){ return isSolid(x,y)||boulders[idx(x,y)]; }
+function say(m){ msgEl.textContent=m; }
+function move(key,quiet){
+  if(dead||won) { if(!quiet) say(dead?"You fell through a hole. Undo or reset.":"You already reached G."); return false; }
+  if(key==="."){ hist.push(snap()); turns++; draw(); return true; }
+  var d=DIRS[key]; if(!d) return false;
+  var ux=hero[0],uy=hero[1],dx=d[0],dy=d[1],x=ux+dx,y=uy+dy,diag=dx&&dy,k=idx(x,y);
+  if(isSolid(x,y)) return false;
+  if(diag&&bad(ux,y)&&bad(x,uy)){ if(!quiet) say("You cannot pass that way."); return false; }
+  if(boulders[k]){
+    var rx=x+dx, ry=y+dy, rk=idx(rx,ry);
+    if(isSolid(rx,ry)||boulders[rk]){ if(!quiet) say("You try to move the boulder, but in vain."); return false; }
+    if(diag){ if(!quiet) say("The boulder won't roll diagonally on this floor."); return false; }
+    hist.push(snap()); boulders[k]=0; pushes++;
+    if(holes[rk]){ holes[rk]=0; say("The boulder falls into and plugs a hole in the floor!"); }
+    else { boulders[rk]=1; say("With great effort you move the boulder."); }
+  } else {
+    hist.push(snap()); if(!quiet) say("");
+  }
+  hero=[x,y]; turns++; visited[k]=1;
+  if(holes[k]){ dead=true; say("There's a gaping hole under you! You fall through... (left the level = lost; Undo to go back)"); }
+  else if(x===goal[0]&&y===goal[1]){ won=true; say(L.status.indexOf("UNSAT")===0?"You reached G on an UNSAT level. That breaks the proof: please tell Claude the move list!":"You reached G. The route you took is a satisfying assignment."); }
+  draw(); return true;
+}
+function run(key){ // Shift+dir: step until a push, a fork, or a stop
+  for(var i=0;i<300;i++){
+    var before=pushes; if(!move(key,true)) break; if(pushes!==before||dead||won) break;
+    var x=hero[0],y=hero[1],open=0; for(var dd in DIRS){ if(DIRS[dd][0]&&DIRS[dd][1]) continue; if(!isSolid(x+DIRS[dd][0],y+DIRS[dd][1])) open++; }
+    if(open>2) break;
+  }
+}
+var CELL=24;
+function viewDims(){ var c=Math.round(CELL*zoom); return {c:c,cols:Math.floor(view.width/c),rows:Math.floor(view.height/c)}; }
+var TXT={floor:"#5c6970",wall:"#93a8b3",boulder:"#f0a35e",hole:"#c78bf0",hero:"#ffffff",goal:"#f2cf4a"};
+function textWall(x,y){ var k=wallK[idx(x,y)]; if(!k) return ""; if(k==="pit") return "^"; if(k==="stairs") return "<"; return (k==="v"||k==="tlw"||k==="trw")?"|":"-"; }
+function draw(){
+  if(!L) return;
+  var v=viewDims(), c=v.c, ox=Math.max(0,Math.min(W-v.cols,hero[0]-(v.cols>>1))), oy=Math.max(0,Math.min(H-v.rows,hero[1]-(v.rows>>1)));
+  vx.fillStyle="#000"; vx.fillRect(0,0,view.width,view.height); vx.imageSmoothingEnabled=false;
+  vx.font=Math.round(c*0.95)+"px VT323, monospace"; vx.textAlign="center"; vx.textBaseline="middle";
+  for(var j=0;j<v.rows;j++) for(var i=0;i<v.cols;i++){
+    var x=ox+i,y=oy+j; if(!inb(x,y)) continue; var k=idx(x,y), px=i*c, py=j*c, t, col, ch;
+    if(solid[k]){ t=wallK[k]; ch=textWall(x,y); col=t==="pit"?TXT.hole:TXT.wall; }
+    else if(x===hero[0]&&y===hero[1]){ t="hero"; ch="@"; col=TXT.hero; }
+    else if(boulders[k]){ t="boulder"; ch="0"; col=TXT.boulder; }
+    else if(holes[k]){ t="hole"; ch="^"; col=TXT.hole; }
+    else if(x===goal[0]&&y===goal[1]){ t="goal"; ch="G"; col=TXT.goal; }
+    else { t="floor"; ch="."; col=TXT.floor; }
+    if(tiles){ if(t&&IMG[t]&&IMG[t].complete){ if(t==="hero"||t==="boulder"||t==="goal"){ vx.drawImage(IMG.floor,px,py,c,c); } vx.drawImage(IMG[t],px,py,c,c); } }
+    else if(ch){ vx.fillStyle=col; vx.fillText(ch,px+c/2,py+c/2+1); }
+    if(x===goal[0]&&y===goal[1]){ vx.strokeStyle=TXT.goal; vx.lineWidth=2; vx.strokeRect(px+1,py+1,c-2,c-2); }
+  }
+  // minimap
+  var img=mx.createImageData(W,H), d=img.data;
+  for(var p=0;p<W*H;p++){
+    var r=0,g=0,b=0;
+    if(!solid[p]){ r=48;g=58;b=64; if(visited[p]){r=76;g=122;b=134;} }
+    else if(wallK[p]){ r=24;g=30;b=34; }
+    if(boulders[p]){r=240;g=163;b=94;} if(holes[p]){r=199;g=139;b=240;}
+    d[p*4]=r;d[p*4+1]=g;d[p*4+2]=b;d[p*4+3]=255;
+  }
+  mx.putImageData(img,0,0);
+  mx.fillStyle="#f2cf4a"; mx.beginPath(); mx.arc(goal[0]+.5,goal[1]+.5,Math.max(3,W/90),0,7); mx.fill();
+  mx.fillStyle="#fff"; mx.beginPath(); mx.arc(hero[0]+.5,hero[1]+.5,Math.max(3,W/90),0,7); mx.fill();
+  mx.strokeStyle="rgba(255,255,255,.6)"; mx.lineWidth=Math.max(1,W/300); mx.strokeRect(ox,oy,v.cols,v.rows);
+  statEl.textContent="Dlvl:1  T:"+turns+"  pushes:"+pushes+"  pos:"+hero[0]+","+hero[1]+(dead?"  FELL":won?"  ON G":"");
+}
+function stopAuto(){ if(autoTimer){ clearInterval(autoTimer); autoTimer=null; document.getElementById("auto").textContent="Show solution"; } }
+document.getElementById("auto").addEventListener("click",function(){
+  if(autoTimer){ stopAuto(); return; }
+  load(cur); var seq=L.moves.replace(/E/g,""), i=0; this.textContent="Stop";
+  autoTimer=setInterval(function(){ if(i>=seq.length){ stopAuto(); return; } move(seq[i++],true); },12);
+});
+LEVELS.forEach(function(lv,i){
+  var b=document.createElement("button"); b.type="button";
+  var cls=lv.status.indexOf("open")>=0?"open":lv.status==="SAT"?"sat":"unsat";
+  b.innerHTML='<span class="tag '+cls+'">'+lv.status+'</span> '+(i+1)+'<small></small>';
+  b.querySelector("small").textContent=lv.formula;
+  b.addEventListener("click",function(){ load(i); view.focus({preventScroll:true}); });
+  document.getElementById("picker").appendChild(b);
+});
+document.querySelectorAll(".pad button").forEach(function(b){ b.addEventListener("click",function(){ stopAuto(); move(b.getAttribute("data-k")); }); });
+document.getElementById("undo").addEventListener("click",undo);
+document.getElementById("reset").addEventListener("click",function(){ load(cur); });
+document.getElementById("zoom").addEventListener("click",function(){ zoom=zoom===1?0.5:zoom===0.5?0.25:1; draw(); });
+document.querySelectorAll("#viewmode button").forEach(function(b){ b.addEventListener("click",function(){
+  tiles=b.getAttribute("data-v")==="tiles";
+  document.querySelectorAll("#viewmode button").forEach(function(o){ o.setAttribute("aria-pressed",String(o===b)); });
+  try{ localStorage.setItem("arena-view",tiles?"tiles":"text"); }catch(e){}
+  draw(); }); });
+try{ if(localStorage.getItem("arena-view")==="text"){ tiles=false; document.querySelectorAll("#viewmode button").forEach(function(o){ o.setAttribute("aria-pressed",String(o.getAttribute("data-v")==="text")); }); } }catch(e){}
+view.addEventListener("click",function(){ view.focus({preventScroll:true}); });
+view.addEventListener("keydown",function(e){
+  if(e.ctrlKey||e.metaKey||e.altKey) return;
+  var k=ARROWS[e.key]||e.key, low=k.toLowerCase();
+  if(DIRS[low]){ e.preventDefault(); stopAuto(); if(e.shiftKey) run(low); else move(low); }
+  else if(k==="."){ e.preventDefault(); move("."); }
+  else if(e.key==="Backspace"){ e.preventDefault(); undo(); }
+});
+function fit(){ var w=Math.min(960,Math.max(300,view.parentNode.clientWidth)); view.width=w; view.height=Math.round(w*0.62); draw(); }
+window.addEventListener("resize",fit);
+load(0); fit();
+})();
+</script>
