@@ -1,0 +1,8 @@
+# 2026-10-29T01:14:46-07:00  cmd: cd ~/nh-lean/nhproof && lake env lean Nhproof/NetHackPush.lean
+# toolchain: leanprover/lean4:v4.36.0-rc2
+# (no output other than #print axioms = no errors, no warnings)
+'NetHackPush.nhMove_sound' depends on axioms: [propext, Classical.choice, Quot.sound]
+'NetHackPush.push1F_step_nhMove' depends on axioms: [propext, Classical.choice, Quot.sound]
+'NetHackPush.reach_iff' depends on axioms: [propext, Classical.choice, Quot.sound]
+'NetHackPush.simulation' depends on axioms: [propext, Classical.choice, Quot.sound]
+exit=0

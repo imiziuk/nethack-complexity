@@ -50,3 +50,14 @@ explicit whitelisted objects. Target: NP-complete.
    (src/nhlua.c:1473-1481), and finalize restores it (losedogs, src/cmd.c:1047); it can displace the hero past
    walls and squeeze Sokoban diagonals. After finalize, assert no monsters.
 7. DL1 is a branch level: finalize adds an up staircase on a random cell (harmless losing exit; leaving = loss).
+
+## Revision 3 (2026-10-29, after review-3-pspace.md)
+8. Branch stair pocket (MANDATORY, both languages): DL1 finalize can put the branch up-stair on the 1-cell start s,
+   hero placement then fails (non-fatal `impossible()`), and the hero keeps a stale RNG position; under R2 prayer's
+   "stuck in wall" fix (`safe_teleds`, src/pray.c:461-465) can then drop him on g. Repair: every instance contains a
+   sealed 1-cell pocket P (walls on all 8 sides, unreachable) and declares
+   `des.levregion({region={Px,Py,Px,Py}, type="branch"})` (src/sp_lev.c:5475-5479; precedent dat/Arc-strt.lua:58).
+   Whitelist adds this call. Harness asserts: hero on s, stair in P, no monsters.
+9. Push-1F enclosure (Lemma E, review-3 §2): put a one-cell empty margin around the Push-1F drawing BEFORE the wall
+   ring (hu-off B.2). NO direction transfers unconditionally; YES needs that no block leaves its gadget in the
+   intended solution (check once against Ani et al. Figs 32-37) [open].

@@ -300,3 +300,7 @@ Harness assumptions the scripts assert (error if false): hero lands on the start
 3. **SC1**: the instance must be run via the harness order; otherwise the reduction is false (kit overwrite).
 4. Lemma 2's "no unbounded RNG retry loop" [conj]; Lemma 1's [assump Q] log quotient.
 5. Theorem A only for L_OFF^W; unrestricted L_OFF upper bound is open (thrones).
+
+> **Erratum (2026-10-29, review-3-pspace.md):** B.2 must add a one-cell empty margin before the wall ring (Lemma E),
+> and every instance needs the branch-stair pocket of phase2-spec Revision 3 item 8; without it Thm B (⇐) and Thm C
+> fail with probability ≈ 1/#floor cells per seed. Repaired, not yet re-reviewed.
