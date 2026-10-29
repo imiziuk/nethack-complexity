@@ -9,14 +9,14 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&family=Spectral:ital,wght@0,400;0,600;1,400&family=VT323&display=swap">
-<link rel="stylesheet" href="style.css?v=20261029b">
-<script>(function(){var r=document.documentElement,d=null,v=null;r.classList.add('js');try{d=localStorage.getItem('nhp-depth');v=localStorage.getItem('nhp-view');}catch(e){}r.setAttribute('data-depth',d==='1'||d==='3'?d:'2');if(v==='tiles'){r.classList.add('tilemode');}})();</script>
+<link rel="stylesheet" href="style.css?v=20261029c">
+<script>(function(){var r=document.documentElement,d=null,v=null;r.classList.add('js');try{d=localStorage.getItem('nhp-depth');v=localStorage.getItem('nhp-view');}catch(e){}if(d!=='0'&&d!=='1'&&d!=='2'&&d!=='3'){d='0';}r.setAttribute('data-depth',d);if(v==='tiles'||(v===null&&d==='0')){r.classList.add('tilemode');}})();</script>
 </head>
 <body>
 <div class="bar needs-js" id="bar" role="region" aria-label="Reading controls">
 <div class="bar-in">
 <div class="bar-grp"><span class="bar-l" id="depth-l">Reading depth</span>
-<div class="seg" role="group" aria-labelledby="depth-l" id="g-depth"><button type="button" data-d="1" aria-pressed="false">Overview</button><button type="button" data-d="2" aria-pressed="true">Explained</button><button type="button" data-d="3" aria-pressed="false">Full paper</button></div></div>
+<div class="seg" role="group" aria-labelledby="depth-l" id="g-depth"><button type="button" data-d="0" aria-pressed="false">For everyone</button><button type="button" data-d="1" aria-pressed="false">Overview</button><button type="button" data-d="2" aria-pressed="true">Explained</button><button type="button" data-d="3" aria-pressed="false">Full paper</button></div></div>
 <div class="bar-grp"><span class="bar-l" id="view-l">Maps</span>
 <div class="seg" role="group" aria-labelledby="view-l" id="view-mode"><button type="button" data-v="text" aria-pressed="true">Text</button><button type="button" data-v="tiles" aria-pressed="false">Tiles</button></div></div>
 <button type="button" class="pbtn" id="proofs-all" hidden>Open all proofs</button>
@@ -54,6 +54,193 @@
 <h1>Reachability in generalized NetHack 5.0.0: PSPACE-complete without hunger, NP-complete with it</h1>
 <p class="byline">Ivan Miziuk · California State University, Chico</p>
 </header>
+
+<p class="pub-link needs-js" id="pub-link"><span>New to complexity?</span> <button type="button" class="pb-go" data-goto="0">Read the For-everyone version</button></p>
+
+<section class="pub" id="public" aria-labelledby="pub-h">
+<p class="pb-kick">For everyone · about 10 minutes · no math needed</p>
+<h2 id="pub-h">How hard is NetHack? A version for everyone</h2>
+<p class="pb-lead">NetHack is an old dungeon game: you walk a hero around a grid, push boulders, eat, and try not to die. This page asks a computer-science question about it and explains the answer in plain words, with things you can play.</p>
+<p class="pb-honest"><b>Honest label:</b> this is a draft by a student researcher. The proofs have been checked by computer tools and by several rounds of critical review, but no journal or conference has reviewed them yet.</p>
+<p class="pb-jump"><a href="#pb-play">&#9654; Play the boulder puzzle</a><a href="#pb-walk">&#9654; Walk a real generated level</a></p>
+
+<h3 id="pb-q">1. The question in one picture</h3>
+<div class="pb-two">
+<figure class="fig pb-fig">
+<svg viewBox="0 0 300 180" role="img" aria-labelledby="pbq1-t">
+<title id="pbq1-t">A small level: a hero on the left, three boulders in the middle, a yellow goal square on the right, walls all around.</title>
+<rect x="15" y="15" width="270" height="150" class="pb-wall"/>
+<g class="pb-floor">
+<rect x="45" y="45" width="210" height="30"/><rect x="45" y="75" width="90" height="30"/><rect x="165" y="75" width="90" height="30"/><rect x="45" y="105" width="210" height="30"/>
+</g>
+<path class="pb-grid" d="M75,45V135M105,45V135M135,45V135M165,45V135M195,45V135M225,45V135M45,75H255M45,105H255"/>
+<rect x="225" y="75" width="30" height="30" class="pb-goal"/>
+<circle cx="150" cy="60" r="12" class="pb-bd"/><circle cx="120" cy="90" r="12" class="pb-bd"/><circle cx="210" cy="120" r="12" class="pb-bd"/>
+<circle cx="60" cy="90" r="12" class="pb-hero"/><text x="60" y="95" class="pb-at">@</text>
+</svg>
+<figcaption>A small level. You could simply try every possible sequence of moves.</figcaption>
+</figure>
+<figure class="fig pb-fig">
+<svg viewBox="0 0 300 180" role="img" aria-labelledby="pbq2-t">
+<title id="pbq2-t">A much larger level drawn small: many corridors and boulders, the hero far left, the goal far right, and a question mark between them.</title>
+<defs><pattern id="pb-pat" width="10" height="10" patternUnits="userSpaceOnUse"><rect width="10" height="10" class="pb-floorp"/><path d="M10,0V10H0" class="pb-grid"/></pattern></defs>
+<rect x="5" y="5" width="290" height="170" class="pb-wall"/>
+<rect x="15" y="15" width="270" height="150" fill="url(#pb-pat)"/>
+<g class="pb-wall"><rect x="45" y="15" width="10" height="60"/><rect x="45" y="95" width="10" height="70"/><rect x="95" y="45" width="40" height="10"/><rect x="95" y="105" width="10" height="60"/><rect x="155" y="15" width="10" height="80"/><rect x="155" y="115" width="60" height="10"/><rect x="205" y="35" width="10" height="70"/><rect x="235" y="125" width="50" height="10"/><rect x="245" y="45" width="10" height="50"/></g>
+<g class="pb-bd"><circle cx="70" cy="40" r="4"/><circle cx="80" cy="120" r="4"/><circle cx="120" cy="80" r="4"/><circle cx="130" cy="140" r="4"/><circle cx="180" cy="60" r="4"/><circle cx="190" cy="140" r="4"/><circle cx="230" cy="80" r="4"/><circle cx="270" cy="60" r="4"/><circle cx="140" cy="20" r="4"/><circle cx="30" cy="150" r="4"/><circle cx="260" cy="110" r="4"/><circle cx="110" cy="30" r="4"/></g>
+<circle cx="25" cy="90" r="6" class="pb-hero"/>
+<rect x="270" y="145" width="10" height="10" class="pb-goal"/>
+<text x="150" y="102" class="pb-big">?</text>
+</svg>
+<figcaption>Now let the dungeon be as big as you like. Trying everything stops being an option.</figcaption>
+</figure>
+</div>
+<p class="pb-legend" aria-hidden="true"><span><i class="sw hero"></i>you, the hero</span><span><i class="sw bd"></i>boulder</span><span><i class="sw goal"></i>goal</span><span><i class="sw wall"></i>rock and walls</span></p>
+<p class="pb-ask">If NetHack's dungeon could be as big as you like, how hard is it for a computer to tell whether the hero can reach a spot?</p>
+<p>For one small level, a computer can just try everything. Computer scientists ask a different question: <b>as levels get bigger, how fast does the work grow?</b> If it grows gently, the problem counts as easy. If it explodes, the problem counts as hard. The real game has a fixed map size, so for this question we let the map grow and change nothing else in the game's code.</p>
+
+<h3 id="pb-play">2. Play first: the boulder puzzle</h3>
+<p class="pb-goalline"><b>Goal:</b> reach the yellow square. The order of pushes matters.</p>
+<p>Boulders move one square when you walk into them, but only straight, never diagonally, and only if the square behind is empty. The line under the map tells you whether the goal can still be reached; one wrong push and it says <i>no, for good</i>. Undo is allowed here (the real game has no undo).</p>
+<div class="pb-slot" id="pub-game-slot">
+<p class="pb-kh needs-js" id="pb-kh1" aria-live="polite">Click the map, then use the arrow keys, or tap the arrow pad.</p>
+</div>
+<details class="pb-hint"><summary>Stuck? A hint</summary><p>Look at the lower boulder first. If it ends up on the yellow square against the wall, it can never be pushed off again.</p></details>
+
+<h3 id="pb-hard">3. What does "hard" mean?</h3>
+<p>In computer science, "hard" is not about how a puzzle feels. It is about <b>how the work grows</b> when the puzzle gets bigger. Three families, or <i>classes</i>, matter here:</p>
+<div class="pb-cls">
+<div class="pb-c p"><b>P: easy to solve</b><p>There is a method whose work grows gently with size: double the size, and the work goes up by a fixed factor, not by an explosion. <i>Example:</i> sorting a list of names, or finding the shortest route on a map.</p></div>
+<div class="pb-c np"><b>NP: easy to check</b><p>If someone hands you an answer, you can check it quickly, even if finding it seems to take forever. <i>Example:</i> a sudoku. Checking a filled grid takes a minute; filling a giant sudoku can mean a huge search.</p></div>
+<div class="pb-c ps"><b>PSPACE: solvable with a modest notepad</b><p>You never need to remember much at once, but the plan itself can be astronomically long, so there may be no short answer anyone could hand you. <i>Example:</i> block-pushing puzzles like Sokoban, or Rush Hour, on boards of any size.</p></div>
+</div>
+<figure class="fig pb-fig pb-venn">
+<svg viewBox="0 0 420 400" role="img" aria-labelledby="pbv-t">
+<title id="pbv-t">Nested regions: P inside NP inside PSPACE. P: sorting a list, shortest route. NP: sudoku, Minesweeper, logic puzzles. PSPACE: Sokoban, Rush Hour, Hex on any board. NetHack with hunger on sits in NP; NetHack with hunger off sits in PSPACE.</title>
+<ellipse cx="210" cy="205" rx="202" ry="190" class="pb-e ps"/>
+<ellipse cx="210" cy="262" rx="150" ry="128" class="pb-e np"/>
+<ellipse cx="210" cy="325" rx="94" ry="58" class="pb-e p"/>
+<text x="210" y="50" class="pb-vl">PSPACE</text>
+<text x="210" y="74" class="pb-vx">Sokoban · Rush Hour</text>
+<text x="210" y="94" class="pb-vx">Hex on any board</text>
+<text x="210" y="121" class="pb-vn">&#9733; NetHack, hunger off</text>
+<text x="210" y="163" class="pb-vl">NP</text>
+<text x="210" y="186" class="pb-vx">Sudoku · Minesweeper</text>
+<text x="210" y="206" class="pb-vx">logic puzzles (SAT)</text>
+<text x="210" y="240" class="pb-vn">&#9733; NetHack, hunger on</text>
+<text x="210" y="300" class="pb-vl">P</text>
+<text x="210" y="322" class="pb-vx">sorting a list</text>
+<text x="210" y="342" class="pb-vx">shortest route</text>
+</svg>
+<figcaption>Every P problem is also in NP, and every NP problem is also in PSPACE. The examples in the outer rings are the hardest ones there. Nobody has proved that the rings really differ in size; most experts believe they do.</figcaption>
+</figure>
+<p><b>"Complete" means the hardest of its kind.</b> A problem is <i>NP-complete</i> if it is in NP and every other NP problem can be turned into it. So a fast method for that one problem would give a fast method for all of NP. <i>PSPACE-complete</i> means the same for PSPACE.</p>
+<p><b>A reduction is a translator.</b> It is a quick, mechanical way to turn any puzzle of one kind into a puzzle of another kind with the same answer. If you have a translator from sudoku into NetHack levels, then NetHack is at least as hard as sudoku.</p>
+<p><b>The big open question.</b> Is P the same as NP? In other words: whenever an answer is easy to check, is it also easy to find? Nobody knows. It is one of the seven Millennium Prize Problems of the Clay Mathematics Institute, with a US$1,000,000 prize for a correct solution, and it is still unsolved. Whether P equals PSPACE is also unknown.</p>
+
+<h3 id="pb-found">4. What we found</h3>
+<div class="pb-res">
+<div class="pb-card">
+<svg class="pb-ico" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="26" r="16" class="pb-bd"/><path d="M14,22a11,11 0 0 1 8,-7" class="pb-crack"/></svg>
+<p class="pb-tag">Hunger off</p>
+<p class="pb-cl">PSPACE-complete</p>
+<p>The hero never needs to eat, so nothing stops a plan from going on and on. NetHack's boulders turn out to behave exactly like the hardest known block-pushing puzzles. A winning plan may need to be astronomically long.</p>
+</div>
+<div class="pb-card">
+<svg class="pb-ico" viewBox="0 0 48 48" aria-hidden="true"><path d="M14,6H34M14,42H34M16,6c0,12 16,12 16,18S16,30 16,42M32,6c0,12 -16,12 -16,18S32,30 32,42" class="pb-hg"/><path d="M19,38h10l-5,-5z" class="pb-sand"/></svg>
+<p class="pb-tag">Hunger on</p>
+<p class="pb-cl">NP-complete</p>
+<p>Food runs out, so every game is fairly short and a winning plan is easy to check. But finding the right plan is still as hard as the hardest logic puzzles. (This needs one extra modelling rule: a hero who starves loses.)</p>
+</div>
+</div>
+<figure class="fig pb-fig">
+<svg viewBox="0 0 520 252" role="img" aria-labelledby="pbh-t">
+<title id="pbh-t">Food over time: it falls steadily, prayer refills it, but each prayer makes the next one wait longer, until food runs out before prayer is allowed again.</title>
+<path d="M50,20V190H505" class="pb-ax"/>
+<text x="42" y="25" class="pb-at2" text-anchor="end">full</text><text x="42" y="194" class="pb-at2" text-anchor="end">0</text>
+<text x="505" y="248" class="pb-at2" text-anchor="end">time (turns) &#8594;</text>
+<text x="12" y="110" class="pb-at2" transform="rotate(-90 12 110)" text-anchor="middle">food</text>
+<path d="M50,20L140,155V20L250,185V20L363,190" class="pb-food"/>
+<circle cx="140" cy="20" r="4" class="pb-pray"/><circle cx="250" cy="20" r="4" class="pb-pray"/>
+<text x="140" y="14" class="pb-at2" text-anchor="middle">pray</text><text x="250" y="14" class="pb-at2" text-anchor="middle">pray</text>
+<path d="M470,20V190" class="pb-dash"/><text x="466" y="44" class="pb-at2" text-anchor="end">next prayer</text><text x="466" y="60" class="pb-at2" text-anchor="end">allowed here</text>
+<path d="M356,183l14,14M370,183l-14,14" class="pb-x"/>
+<text x="372" y="172" class="pb-at2">out of food</text>
+<path d="M142,208H248M252,208H468" class="pb-gap"/>
+<text x="195" y="226" class="pb-at2" text-anchor="middle">wait</text><text x="360" y="226" class="pb-at2" text-anchor="middle">longer wait</text>
+</svg>
+<figcaption><b>Hunger is a clock.</b> Every step uses food. Fortune cookies add a little; prayer can refill the stomach, but each prayer makes the next one wait longer. Eventually food runs out before you may pray again, so every game ends after a limited number of steps. Simplified picture; the paper has the exact numbers.</figcaption>
+</figure>
+
+<h3 id="pb-how">5. How do you prove a game is hard?</h3>
+<p>You cannot prove hardness by failing to find a fast method; maybe you just did not look hard enough. Instead you build a <b>translator</b>. Take a problem already known to be hard, here a kind of logic puzzle called SAT, and show how to turn any such puzzle into a NetHack level.</p>
+<p>A SAT puzzle is a list of on/off switches (<i>x1</i>, <i>x2</i>, ...) and some rules, each saying "at least one of these must hold". For example: <i>x1 or x2</i>, and <i>not x1 or not x2</i>. In plain words: exactly one of the two switches is on.</p>
+<figure class="fig pb-fig pb-tr">
+<div class="pb-tr-row">
+<div class="pb-tr-box"><span class="pb-tr-h">Logic puzzle</span><span class="pb-form">(x1 &or; x2) &and; (&not;x1 &or; &not;x2)</span><span class="pb-tr-s">&or; = or, &and; = and, &not; = not</span></div>
+<svg class="pb-arrow" viewBox="0 0 120 60" aria-hidden="true"><path d="M8,30H100" class="pb-arr"/><path d="M98,20L114,30L98,40Z" class="pb-arrh"/><text x="56" y="20" text-anchor="middle" class="pb-at2">translator</text></svg>
+<div class="pb-tr-box"><span class="pb-tr-h">NetHack level</span><a href="img/layout-small-solved.png"><img src="img/layout-small-solved.png" width="910" height="1160" alt="The generated NetHack level for this formula: dark rock, thin grey-blue corridors, orange boulders, and a yellow line tracing a winning route from left to top right." loading="lazy"></a><span class="pb-tr-s">about 43,000 squares, most of them solid rock; yellow: a winning route</span></div>
+</div>
+<p class="pb-iff">The hero can reach the goal &#8660; the switches can be set so that every rule holds</p>
+<figcaption>The translator is a short computer program. Its levels grow only moderately with the size of the logic puzzle.</figcaption>
+</figure>
+<p>That gives the key argument: <b>if you could beat every such level quickly, you could solve every logic puzzle quickly</b>, and that would settle P versus NP. The hunger-off result uses the same idea, translating a known PSPACE-complete block-pushing puzzle called Push-1F into NetHack boulders.</p>
+
+<h3 id="pb-walk">6. Walk a real level</h3>
+<p>This is the level the translator builds for the puzzle above. It is big; the small map on the side shows where you are.</p>
+<ul class="pb-ul">
+<li>You start at the left end of a long corridor. At each switch the corridor splits: <b>top branch = off (false)</b>, <b>bottom branch = on (true)</b>. Pick one; they join again.</li>
+<li>Each branch makes you push some boulders aside. Those boulders permanently <b>block paths</b> further on, the paths that needed the other choice.</li>
+<li>At the end come the rule checks. Each rule has one path per switch it mentions; you need <b>at least one open path through every rule</b> to reach the goal.</li>
+</ul>
+<div class="gm pv needs-js" id="pv">
+<div class="pv-top"><span class="pv-f">(x1 &or; x2) &and; (&not;x1 &or; &not;x2): exactly one switch on</span></div>
+<p class="msg" id="pv-msg" aria-live="polite"></p>
+<div class="pv-stage">
+<div class="pv-main"><canvas id="pv-view" width="640" height="400" tabindex="0" aria-label="Level map. Use the arrow keys to move, Backspace to undo."></canvas>
+<div class="stat" id="pv-stat"></div></div>
+<div class="pv-side">
+<canvas id="pv-mini" aria-label="Minimap of the whole level"></canvas>
+<p class="pv-leg"><span><i class="sw hero"></i>you</span><span><i class="sw goal"></i>goal</span><span><i class="sw bd"></i>boulder</span><span><i class="sw hole"></i>hole</span><span><i class="sw vis"></i>visited</span></p>
+<div class="pad" aria-label="Move pad">
+<button type="button" data-k="y" aria-label="Move northwest">&#8598;</button><button type="button" data-k="k" aria-label="Move north">&#8593;</button><button type="button" data-k="u" aria-label="Move northeast">&#8599;</button>
+<button type="button" data-k="h" aria-label="Move west">&#8592;</button><button type="button" data-k="." aria-label="Wait one turn">&middot;</button><button type="button" data-k="l" aria-label="Move east">&#8594;</button>
+<button type="button" data-k="b" aria-label="Move southwest">&#8601;</button><button type="button" data-k="j" aria-label="Move south">&#8595;</button><button type="button" data-k="n" aria-label="Move southeast">&#8600;</button>
+</div>
+<div class="ctl"><button type="button" id="pv-undo">Undo</button><button type="button" id="pv-reset">Reset</button><button type="button" id="pv-zoom">Zoom out</button><button type="button" id="pv-auto">Show solution</button></div>
+</div>
+</div>
+<p class="help" id="pb-kh2">Click the map, then use the arrow keys (Shift + arrow runs to the next junction). Backspace undoes. Purple squares are holes: stepping in means falling off the level; pushing a boulder in fills the hole.</p>
+</div>
+<p class="pb-links"><a href="engine.html">Try your own formula: the reduction engine</a> <a href="arena.html">More levels, including impossible ones: the arena</a></p>
+
+<h3 id="pb-why">7. Why does this matter?</h3>
+<ul class="pb-ul">
+<li><b>No clever shortcut is likely.</b> Unless P equals NP, which most experts doubt, no program can play these NetHack levels perfectly and quickly on every level. Game AIs have to settle for good guesses.</li>
+<li><b>Games are a fun lab for serious math.</b> The same classes describe scheduling, delivery routes, packing, and chip design. Puzzles are a friendly way to study them.</li>
+<li><b>It explains a feeling.</b> When a puzzle seems to need endless trial and error, a hardness proof says why: no general trick is known.</li>
+<li><b>It is new, as far as we found.</b> Many games have such results (Sokoban, Tetris, Super Mario Bros.), but we found no earlier one for NetHack.</li>
+</ul>
+
+<h3 id="pb-gloss">8. Tiny glossary</h3>
+<dl class="pb-gl">
+<dt>Algorithm</dt><dd>A step-by-step method a computer follows, like a recipe.</dd>
+<dt>Polynomial</dt><dd>Work that grows gently with size: double the input, and the work goes up by a fixed factor.</dd>
+<dt>Exponential</dt><dd>Work that explodes: each extra bit of size multiplies the work, so it soon outruns any computer.</dd>
+<dt>P, NP, PSPACE</dt><dd>Easy to solve; easy to check; solvable with modest memory but maybe an astronomically long plan (Section 3).</dd>
+<dt>Complete</dt><dd>The hardest problems in a class: a fast method for one would give a fast method for all of them.</dd>
+<dt>Reduction</dt><dd>A translator that turns one kind of puzzle into another with the same answer.</dd>
+<dt>SAT</dt><dd>A logic puzzle: set on/off switches so that every rule in a list holds. The classic NP-complete problem.</dd>
+<dt>Generalized</dt><dd>A game with its size limits removed, so levels can be as large as you like.</dd>
+</dl>
+
+<div class="pb-cta">
+<p class="pb-cta-h">Want the details?</p>
+<p>The same results at three more levels of depth:</p>
+<div class="pb-cta-b"><button type="button" class="pb-go" data-goto="1">Overview <small>key results, short</small></button><button type="button" class="pb-go" data-goto="2">Explained <small>with plain-language notes</small></button><button type="button" class="pb-go" data-goto="3">Full paper <small>every proof</small></button></div>
+</div>
+</section>
+
 
 <section class="abstract" id="abstract">
 <h2>Abstract</h2>
@@ -160,7 +347,7 @@
 
 <section id="tools">
 <h3 data-dm="2"><span class="sn">1.4</span>Companion pages</h3>
-<p data-dm="2">Two pages accompany this paper. The <a href="engine.html">reduction engine</a> lets you type a formula, get the level, and play it: it builds the NP reduction's output for a small Planar Monotone Rectilinear 3-SAT formula and lets you walk it. The <a href="arena.html">reduction arena</a> collects the generated levels for the small instances, including the five that the exhaustive checker has not finished (Section 7.2).</p>
+<p data-dm="2">Two pages accompany this paper. The <a href="engine.html">reduction engine</a> lets you type a formula, get the level, and play it: it builds the NP reduction's output for a small Planar Monotone Rectilinear 3-SAT formula and lets you walk it. The <a href="arena.html">reduction arena</a> collects the generated levels for the small instances, including the four that the exhaustive checker has not finished (Section 7.2).</p>
 <div data-dm="2" class="links"><a href="engine.html">engine.html: formula &rarr; level &rarr; play</a><a href="arena.html">arena.html: play the generated levels</a></div>
 </section>
 </section>
@@ -1481,7 +1668,7 @@ nh.debug_flags({ mongen = false, hunger = false });</code></pre>
 </ol>
 <p>Every cell is entered at most twice (only crossover centres <i>m</i> are re-entered). <b>Food:</b> <i>&eta;</i> starts at 900 and drops by exactly 1 per move (unencumbered, speed 12, no rings). Policy: on entering a cell that still has a cookie, eat it if <i>&eta;</i> &le; 860 (+40, at most two turns). At most two consecutive moves end on a cookie-less cell (a re-entered <i>m</i>, then the plugged <i>s</i><sub>1</sub>), so <i>&eta;</i> &isin; [857, 900]: never Hungry (&le; 150) or Satiated (&gt; 1000), no fainting, rule S never applies. Pushes, plugging and hunger are deterministic, and a cookie's random text has no effect. <span class="qed">&#8718;</span></p>
 </div></details></div>
-<div data-dm="2" class="thm lem" id="lem-sound"><p><span class="thm-h">Lemma 5.12</span><span class="nm">(soundness)</span>. If <i>&phi;</i> is unsatisfiable, no play reaches <i>g</i> under any die rolls. <span class="chip strong">STRONG</span> (review 4: holds, modulo P4 and the prayer/ball items below; exhaustive on 18 of 23 small unsatisfiable levels)</p>
+<div data-dm="2" class="thm lem" id="lem-sound"><p><span class="thm-h">Lemma 5.12</span><span class="nm">(soundness)</span>. If <i>&phi;</i> is unsatisfiable, no play reaches <i>g</i> under any die rolls. <span class="chip strong">STRONG</span> (review 4: holds, modulo P4 and the prayer/ball items below; exhaustive on 19 of 23 small unsatisfiable levels)</p>
 <p class="pf-link" data-dm="2" data-dmax="2"><a href="#pf-lem-sound">Show proof: gates, Claim A, Claim B</a></p><details id="pf-lem-sound" data-dm="3" class="proof"><summary>Proof: gates, Claim A, Claim B</summary><div class="pf">
 <p><b>Gates and segments.</b> Gates are: every crossover (opened by pushing <i>&delta;</i> off <i>n</i><sub>2</sub> from <i>k</i>), every door (opened by pushing <i>&kappa;</i> from <i>e</i>), and every forward exit of a closing site. Removing gate cells and the regions <a class="g" href="#n-seg"><i>Z</i><sub>&sigma;</sub></a> (<i>q</i>, <i>q</i>&prime;, <i>c</i>, back segment, door exit side) splits K into segments, which by Lemma 5.9 and the routing form one chain <i>K</i><sub>0</sub> &rarr; &hellip; &rarr; <i>H</i><sub>1</sub> &rarr; (paths of <i>C</i><sub>1</sub> in parallel) &rarr; <i>E</i><sub>1</sub> &rarr; &hellip; &rarr; <i>E<sub>m</sub></i> &ni; <i>g</i>.</p>
 <p><b>Claim A.</b> For every segment <i>Y</i> &ne; <i>K</i><sub>0</sub> and every <i>Z</i><sub>&sigma;</sub>: (a) no cell of <i>Y</i> is entered before the gate whose downstream part is <i>Y</i> was opened; (b) that opening push is made from upstream (<i>k</i> or <i>e</i>), so the hero stood on the preceding segment first; (c) the exit segment <i>E<sub>j</sub></i> is first entered from <i>Z</i><sub>&sigma;</sub> for some <i>&sigma;</i> &isin; <i>C<sub>j</sub></i> not closed at that moment, and the hero first entered that <i>Z</i><sub>&sigma;</sub> through its door. The claim says nothing about which cell a segment is first entered through (it may be <i>m</i> of a used crossover), only that its gate was opened from upstream. <i>Proof:</i> Lemmas 5.7, 5.8(a) and 5.9 for (a), (b). For (c): <i>E<sub>j</sub></i> touches other cells only at the first forward cell beyond each <i>c</i>, at gates of its outgoing arc, and at <i>m</i> cells passable only after a pass started on <i>E<sub>j</sub></i>. If <i>&sigma;</i> was closed, <i>&omega;</i> blocks the forward exit (Lemma 5.6(b), (c)). <i>Z</i><sub>&sigma;</sub> is reachable other than through its door only from <i>v</i>, which needs <i>&omega;</i> pushed into <i>q</i> (closing <i>&sigma;</i>), or pushed back up by a hero already on <i>q</i>.</p>
@@ -1537,7 +1724,7 @@ nh.debug_flags({ mongen = false, hunger = false });</code></pre>
 <!-- ======================================================= 7 -->
 <section id="evidence" class="lv">
 <div class="sec-head"><h2><span class="sn">7</span>Evidence</h2><div class="seg sm local" role="group" aria-label="Reading depth for 7 Evidence"><button type="button" data-d="1">Overview</button><button type="button" data-d="2">Explained</button><button type="button" data-d="3">Full</button></div></div>
-<p class="oneline" data-dm="1">Eight witness scripts passed in the real NetHack 5.0.0 build in each of 3 runs with different seeds, and an exhaustive checker found no mismatch on small NP instances (18 of 23 unsatisfiable levels finished). Evidence, not proof.</p>
+<p class="oneline" data-dm="1">Eight witness scripts passed in the real NetHack 5.0.0 build in each of 3 runs with different seeds, and an exhaustive checker found no mismatch on small NP instances (19 of 23 unsatisfiable levels finished). Evidence, not proof.</p>
 <p data-dm="2">The proofs do not depend on this section. It reports checks that could have found a counterexample and did not.</p>
 
 <section id="witness">
@@ -1573,7 +1760,7 @@ nh.debug_flags({ mongen = false, hunger = false });</code></pre>
 <section id="checker">
 <h3 data-dm="2"><span class="sn">7.2</span>Exhaustive checker for small NP instances</h3>
 <div class="xpl" data-dm="2">
-<p>A program enumerates every small formula (<i>n</i>, <i>m</i> &le; 3: 513 formulas, 393 distinct levels), builds the level, replays the intended play on the satisfiable ones (370/370 reach <i>g</i>) and searches every reachable state on the unsatisfiable ones: 18 of 23 proved unreachable, the 5 largest too big to finish, and no mismatch between "reachable" and "satisfiable".</p>
+<p>A program enumerates every small formula (<i>n</i>, <i>m</i> &le; 3: 513 formulas, 393 distinct levels), builds the level, replays the intended play on the satisfiable ones (370/370 reach <i>g</i>) and searches every reachable state on the unsatisfiable ones: 19 of 23 proved unreachable, the 4 largest too big to finish, and no mismatch between "reachable" and "satisfiable".</p>
 </div>
 <p data-dm="3"><code>tools/check_small.py</code> enumerates every monotone instance with <i>n</i> &le; 3 variables and 1 &le; <i>m</i> &le; 3 distinct clauses of 1&ndash;3 literals: 513 instances (all satisfy P3), 455 satisfiable, 58 not. After the generator deletes unused variables they give 393 distinct levels (370 satisfiable, 23 not). Satisfiable levels replay the intended play in the exact movement model (Mv1&ndash;Mv4, entering a hole loses). Unsatisfiable levels get an exhaustive breadth-first search over (hero region, boulder set, unplugged holes), diagonals included, with no pruning (a tempting pruning rule turned out to be unsound, Appendix B).</p>
 <div data-dm="3" class="tbl">
@@ -1585,14 +1772,14 @@ nh.debug_flags({ mongen = false, hunger = false });</code></pre>
 <tr><td>satisfiable: intended play replayed reaches <i>g</i></td><td>370/370 levels (all 455 satisfiable instances)</td></tr>
 <tr><td>nutrition along the play</td><td>minimum 859; &le; 2 visits per cell; longest cookie-less run 2</td></tr>
 <tr><td>satisfiable: exhaustive search finds <i>g</i> (sanity check)</td><td>20/20</td></tr>
-<tr><td>unsatisfiable: exhaustive search, <i>g</i> unreachable</td><td><b>18/23</b>; the 5 largest are open: stopped after 26&ndash;35 million states without reaching <i>g</i></td></tr>
+<tr><td>unsatisfiable: exhaustive search, <i>g</i> unreachable</td><td><b>19/23</b>; the 4 largest are open: stopped after 90 million states each without reaching <i>g</i></td></tr>
 <tr><td>largest finished search</td><td>2,139,544 states (Rust); 734,784 (Python)</td></tr>
 <tr><td>mismatches (reachable &ne; satisfiable)</td><td><b>0</b></td></tr>
 <tr><td>largest level / most crossovers / longest play</td><td>440&times;286 cells / 23 / 4,241 moves</td></tr>
 <tr><td>layout stress tests beyond <i>n</i>, <i>m</i> &le; 3</td><td>767 random instances (<i>n</i>, <i>m</i> &le; 6) and 660 more (up to <i>m</i> = 46, nesting level 5): every assertion and size bound held; all 379 satisfiable ones in the second set won by replay</td></tr>
 </tbody></table>
 </div>
-<p data-dm="3"><b>Rust search.</b> <code>tools/fastbfs</code> runs the same exact search on models exported by the Python checker, about 100&times; faster, with a lossless state encoding and full-key comparison. It was validated by reproducing the exact state counts of all 36 earlier searches. It settled two of the seven Python time-outs (1,175,464 and 2,139,544 states). The five open levels are the largest (21&ndash;32 boulders); their searches exceeded the memory available. A further overnight run of these five was still in progress when this draft was written.</p>
+<p data-dm="3"><b>Rust search.</b> <code>tools/fastbfs</code> runs the same exact search on models exported by the Python checker, about 100&times; faster, with a lossless state encoding and full-key comparison. It was validated by reproducing the exact state counts of all 36 earlier searches. It settled two of the seven Python time-outs (1,175,464 and 2,139,544 states). An overnight run settled one more level, [3][&minus;3][1,2,3] (48,002,512 states, <i>g</i> unreachable). The four still open are the largest; each search was capped at 90 million states without reaching <i>g</i>.</p>
 <p data-dm="3">Not covered: no generated level has been loaded in the real game, because the smallest is 132&times;132 cells and the stock build is 80&times;21; and the exhaustive part covers only <i>n</i>, <i>m</i> &le; 3.</p>
 </section>
 </section>
@@ -1600,13 +1787,13 @@ nh.debug_flags({ mongen = false, hunger = false });</code></pre>
 <!-- ======================================================= 8 -->
 <section id="open" class="lv">
 <div class="sec-head"><h2><span class="sn">8</span>Limitations and open problems</h2><div class="seg sm local" role="group" aria-label="Reading depth for 8 Limitations and open problems"><button type="button" data-d="1">Overview</button><button type="button" data-d="2">Explained</button><button type="button" data-d="3">Full</button></div></div>
-<p class="oneline" data-dm="1">The weakest points: one check against the Push-1F figures, a source-problem statement read only in restatements, five unfinished checker runs, and no full reduction output run in the game.</p>
+<p class="oneline" data-dm="1">The weakest points: one check against the Push-1F figures, a source-problem statement read only in restatements, four unfinished checker runs, and no full reduction output run in the game.</p>
 <p data-dm="2">Weakest points first.</p>
 <ol data-dm="2">
 <li><b>Lemma 4.7(c).</b> Check against Ani et al.'s Figures 32&ndash;37 that no block leaves its gadget in the intended solution. Until then the YES direction of PSPACE-hardness for the published instances rests on the gadgets' design.</li>
 <li><b>P4.</b> The exact statement of Planar Monotone Rectilinear 3-SAT in de Berg and Khosravi (in particular that the drawing is part of the input) was read only in restatements.</li>
 <li><b>No full reduction output has run in the game</b>; that needs a build with larger COLNO and ROWNO.</li>
-<li><b>Five small unsatisfiable levels</b> are not exhaustively checked.</li>
+<li><b>Four small unsatisfiable levels</b> are not exhaustively checked.</li>
 <li><b>Command audit.</b> About 60 command handlers (groups U and X of Lemma 4.5) were read at their entry points only; the prayer and iron-ball side effects in the NP construction are argued, not traced in full.</li>
 <li><b>Conjectural lemmas.</b> Lemma 4.2 (no unbounded roll-retry loop), Lemma 5.3 (free-action normalization), the log quotient of Lemma 4.1.</li>
 <li><b>Re-review.</b> The PSPACE erratum (margin and stair pocket) is applied but not re-reviewed.</li>
@@ -1820,10 +2007,22 @@ $$("button.t").forEach(function (el) {
 document.addEventListener("click", function (e) { if (tipFor && !(e.target.closest && e.target.closest("button.t"))) { hideTip(); } });
 document.addEventListener("keydown", function (e) { if (e.key === "Escape") { hideTip(); } });
 
+/* ---------- For everyone (depth 0): the puzzle moves into the public section ---------- */
+var gameHome = null, pvApi = null;
+function onDepth(d) {
+  var game = document.getElementById("game"), slot = document.getElementById("pub-game-slot");
+  if (game && slot) {
+    if (!gameHome) { gameHome = document.createComment("game home"); game.parentNode.insertBefore(gameHome, game); }
+    if (d === "0") { if (game.parentNode !== slot) { slot.appendChild(game); } }
+    else if (game.parentNode === slot) { gameHome.parentNode.insertBefore(game, gameHome); }
+  }
+  if (pvApi) { pvApi.fit(); }
+}
+
 /* ---------- reading depth ---------- */
 var secs = $$("section.lv");
 var bar = document.getElementById("bar");
-function gdepth() { var d = root.getAttribute("data-depth"); return d === "1" || d === "3" ? d : "2"; }
+function gdepth() { var d = root.getAttribute("data-depth"); return d === "0" || d === "1" || d === "3" ? d : "2"; }
 function eff(sec) { return sec.getAttribute("data-depth") || gdepth(); }
 function paintLocal(sec) {
   var d = eff(sec);
@@ -1840,6 +2039,7 @@ function setGlobal(d, save) {
   root.setAttribute("data-depth", d);
   secs.forEach(function (s) { s.removeAttribute("data-depth"); });
   paintAll();
+  onDepth(d);
   if (save) { try { localStorage.setItem("nhp-depth", d); } catch (e) { /* storage unavailable */ } }
 }
 $$("#g-depth button").forEach(function (b) {
@@ -1874,6 +2074,7 @@ function needed(el) {
 function reveal(id, scroll) {
   var el = id ? document.getElementById(id) : null;
   if (!el) { return; }
+  if (gdepth() === "0" && !(el.closest && el.closest("#public, header.title"))) { setGlobal("1", false); }
   var r = needed(el);
   if (r.sec && +eff(r.sec) < r.d) { r.sec.setAttribute("data-depth", String(r.d)); paintAll(); }
   for (var p = el; p && p.nodeType === 1; p = p.parentNode) { if (p.tagName === "DETAILS") { p.open = true; } }
@@ -2129,10 +2330,194 @@ function setView(v, save) {
   if (tileMode) { tileSvgs(); }
   $$("#view-mode button").forEach(function (b) { b.setAttribute("aria-pressed", String(b.getAttribute("data-v") === v)); });
   render();
+  if (pvApi) { pvApi.draw(); }
   if (save) { try { localStorage.setItem("nhp-view", v); } catch (e) { /* storage unavailable */ } }
 }
 $$("#view-mode button").forEach(function (b) { b.addEventListener("click", function () { setView(b.getAttribute("data-v"), true); }); });
 setView(tileMode ? "tiles" : "text", false);
+
+/* ---------- For everyone: mode links, keyboard hints, level viewer ---------- */
+$$(".pb-go").forEach(function (b) {
+  b.addEventListener("click", function () {
+    var d = b.getAttribute("data-goto");
+    setGlobal(d, true);
+    var t = document.getElementById(d === "0" ? "public" : "abstract");
+    if (t) { t.scrollIntoView({ block: "start" }); }
+  });
+});
+function kbHint(el, hint, on, off) {
+  if (!el || !hint) { return; }
+  el.addEventListener("focus", function () { hint.textContent = on; hint.classList.add("on"); });
+  el.addEventListener("blur", function () { hint.textContent = off; hint.classList.remove("on"); });
+}
+kbHint(boardEl, document.getElementById("pb-kh1"), "Keys active: the arrow keys move you, Backspace undoes.", "Click the map, then use the arrow keys, or tap the arrow pad.");
+
+pvApi = (function () {
+  var view = document.getElementById("pv-view");
+  if (!view) { return null; }
+  var L = {"formula":"(x1 ∨ x2) ∧ (¬x1 ∨ ¬x2)","rows":["                                                                                                                                                                                      ","                                                                                                                                                                                      ","                                                                                                                                                                                      ","                        .......    .......    .......    .......    .......    .......    .......    .......    .......    .......    .......    .......    .......                   ","                        .     .    .     .    .     .    .     .    .     .    .     .    .     .    .     .    .     .    .     .    .     .    .     .    .     .                   ","                .........     ......     ......     ......     ......     ......     ......     ......     ......     ......     ......     ......     ......     .........           ","                .                                                                                                                                                         .           ","                .                                                                                                                                                         .           ","                .                                                                                                                                                         .           ","                .                                                                                                                                                         .           ","                .                                                                                                                                                         .           ","                .                                                                                                                                                         .           ","                .                                                                                                                                                         .           ","                .                                                                                                                                                       ...           ","                .                  .......                          .......    .......    .......    .......               .......    .......    .......                .             ","                .                  .     .                          .     .    .     .    .     .    .     .               .     .    .     .    .     .                .             ","                ....................     .........          .........     ......     ......     ......     .................     ......     ......     ........G        .             ","                           .                     .          .                                                      .                                                    .             ","                           .                     .          .                                                      .                                                    .             ","                           .                     .          .                                                      .                                                    ...           ","                           .                     .          .                                                      .                                                      .           ","                           .                     .          .                                                      .                                                      .           ","                           .                     .          .                                                      .                                                      .           ","                           .                     .          ...                                                    .                                                      .           ","                         ...                     .            .                                                  ...                                                    ...           ","                         .                       .          ...                                                  .                                                      .             ","                         .                       .          .                                                    .                                                      .             ","                         .                       0...........  .........                                         .                                                      .             ","                         .                       .          0...       .                                         .                                                      .             ","                         .                                  .          .                                         .                                                      .             ","                         ...                                .          .                                         ...                                                    ...           ","                           .                                .          .                                           .                                                      .           ","                           .                                .          .                                           .                                                      .           ","                           .                                .          .                                           .                                                      .           ","                           .                                ...        ...                                         .                                                      .           ","                           .                                  .          .                                       ...                                                    ...           ","                           .       .......    .......       ...        ...     .......    .......                .                                                      .             ","                           .       .     .    .     .     . .        . .       .     .    .     .                .                                                      .             ","                           .........     ......     ..... 00.^...... 00.^.......     ......     .........        .                                                      .             ","                                                        . . .      . . .                                .        .                                                      .             ","                                                        . . ...    . . ...                              .        .                                                      .             ","                                                        ...   .    ...   .                              .        ...                                                    ...           ","                                                            ...        ...                              .          .                                                      .           ","                                                            .          .                                .          .                                                      .           ","                                                            .          .                                .          .                                                      .           ","                                                            .          .                                .          ...                                                    .           ","                                                          ...        ...                                .            .                                                  ...           ","                                                          .          .                                  .          ...                                                  .             ","                                                          .          .                                  .          .                                                    .             ","                                                          .          .                                  0...........  .........                                         .             ","                                                          .          .                                  .          0...       .                                         .             ","                                                          .          .                                             .          .                                         .             ","                                                          ...        ...                                           .          .                                         ...           ","                                                            .          .                                           .          .                                           .           ","                                                            .          .                                           .          .                                           .           ","                                                            .          .                                           .          .                                           .           ","                                                            .          .                                           .          .                                           .           ","                                                          ...        ...                                         ...        ...                                         ...           ","                                                          .          .                                           .          .                                           .             ","                                                          .          .                                           .          .                                           .             ","                                                          .          .                                           .          .                                           .             ","                                                          .          .                                           .          .                                           .             ","                                                          .          .                                           .          .                                           .             ","                                                          ...        ...                                         ...        ...                                         ...           ","                                                            .          .                                           .          .                                           .           ","                                                            .          .                                           .          .                                           .           ","                                                            .          .                                           .          .                                           .           ","                                                            .          .                                           .          .                                           .           ","                                                          ...        ...                                         ...        ...                                         ...           ","                                                          .          .                                           .          .                                           .             ","                                                          .          .                                           .          .                                           .             ","                                                          .          .                                           .          .                                           .             ","                                                          .          .                                           .          .                                           .             ","                                                          .          .                                           .          .                                           .             ","                                                          ...        ...                                         ...        ...                                         ...           ","                                                            .          .                                           .          .                                           .           ","                                                            .          .                                           .          .                                           .           ","                                                            .          .                                           .          .                                           .           ","                                                            .          .                                           .          .                                           .           ","                                                          ...        ...                                         ...        ...                                         ...           ","                                                          .          .                                           .          .                                           .             ","                                                          .          .                                           .          .                                           .             ","                                                          .          .                                           .          .                                           .             ","                                                          .          .                                           .          .                                           .             ","                                                          .          .                                           .          .                                           .             ","                                                          ...        ...                                         ...        ...                                         ...           ","                                                            .          .                                           .          .                                           .           ","                                                            .          .                                           .          .                                           .           ","                                                            .          .                                           .          .                                           .           ","                                                            .          .                                           .          .                                           .           ","  b                                                       ...        ...                                         ...        ...                                         ...           ","                                                          .          .                                           .          .                                           .             ","                                                          .          .                                           .          .                                           .             ","     p                                                    .          .                                           .          .                                           .             ","                                                          .          .                                           .          .                                           .             ","                                                          .          .                                           .          .                                           .             ","                                                          ...        ...                                         ...        ...                                         ...           ","                                                            .          .                                           .          .                                           .           ","                                                            .          .                                           .          .                                           .           ","                                                            .          .                                           .          .                                           .           ","                                                            .          .                                           .          .                                           .           ","                                                            .          .                                           .          .                                         ...           ","                                              .......       .          .                             .......       .          .                                         .             ","                                              .     .       .          .                             .     .       .          .                                         .             ","                                      .........     .........          ............          .........     .........          ............                              .             ","                                      .                                           .          .                                           .                              .             ","                                      .                                           .          .                                           .                              .             ","                                      .                                           .          .                                           .                              ...           ","                                      .                                           .          .                                           .                                .           ","                                      .                                           .          .                                           .                                .           ","                                      .                                           .          .                                           .                                .           ","                                      .                                           .          .                                           .                                .           ","                                      .                                           .          .                                           .                                .           ","             .......    .......       .                                           .          .                                           .       .......    .......   ... . ...       ","             .     .    .     .       .                                           .          .                                           .       .     .    .     .   . . ^ . .       ","     @........     ......     .........                                           ............                                           .........     ......     ..... ..... ........","                                      .                                           .          .                                           .                                0          .","                                      .                                           .          .                                           .                               .0...       .","                                      .                                           .          .                                           .                                   .       .","                                      .                                           .          .                                           .                                ....       .","                                      .                                           .          .                                           .                                .          .","                                      .                                           .          .                                           .                                .          .","                                      .                                           .          .                                           .                                .          .","                                      .                                           .          .                                           .                              ...        ...","                                      .       .......                             .          .       .......                             .                              .          .  ","                                      .       .     .                             .          .       .     .                             .                              .          .  ","                                      .........     .........          ............          .........     .........          ............                              .          .  ","                                                            .          .                                           .          .                                         .          .  ","                                                            .          .                                           .          .                                         .          .  ","                                                            .          .                                           .          .                                         ...        ...","                                                            .          .                                           .          .                                           .          .","                                                            .          .                                           .          .                                           .          .","                                                            .          .                                           .          .                                           .          .","                                                            .          .                                           .          .                                           .          .","                                                          ...        ...                                         ...        ...                                         ...        ...","                                                          .          .                                           .          .                                           .          .  ","                                                          .          .                                           .          .                                           .          .  ","                                                          .          .                                           .          .                                           .          .  ","                                                          .          .                                           .          .                                           .          .  ","                                                          .          .                                           .          .                                           .          .  ","                                                          ...        ...                                         ...        ...                                         ...        ...","                                                            .          .                                           .          .                                           .          .","                                                            .          .                                           .          .                                           .          .","                                                            .          .                                           .          .                                           .          .","                                                            .          .                                           .          .                                           .          .","                                                          ...        ...                                         ...        ...                                         ...        ...","                                                          .          .                                           .          .                                           .          .  ","                                                          .          .                                           .          .                                           .          .  ","                                                          .          .                                           .          .                                           .          .  ","                                                          .          .                                           .          .                                           .          .  ","                                                          .          .                                           .          .                                           .          .  ","                                                          ...        ...                                         ...        ...                                         ...        ...","                                                            .          .                                           .          .                                           .          .","                                                            .          .                                           .          .                                           .          .","                                                            .          .                                           .          .                                           .          .","                                                            .          .                                           .          .                                           .          .","                                                          ...        ...                                         ...        ...                                         ...        ...","                                                          .          .                                           .          .                                           .          .  ","                                                          .          .                                           .          .                                           .          .  ","                                                          .          .                                           .          .                                           .          .  ","                                                          .          .                                           .          .                                           .          .  ","                                                          .          .                                           .          .                                           .          .  ","                                                          ...        ...                                         ...        ...                                         ...        ...","                                                            .          .                                           .          .                                           .          .","                                                            .          .                                           .          .                                           .          .","                                                            .          .                                           .          .                                           .          .","                                                            .          .                                           .          .                                           .          .","                                                          ...        ...                                         ...        ...                                         ...        ...","                                                          .          .                                           .          .                                           .          .  ","                                                          .          .                                           .          .                                           .          .  ","                                                          .          .                                           .          .                                           .          .  ","                                                          .          .                                           .          .                                           .          .  ","                                                          .          .                                           .          .                                           .          .  ","                                                          ...        ...                                         ...        ...                                         ...        ...","                                                            .          .                                           .          .                                           .          .","                                                            .          .                                           .          .                                           .          .","                                                            .          .                                           .          .                                           .          .","                                                            .          .                                           .          .                                           .          .","                                                          ...        ...                                           .          .                                         ...        ...","                                                          .          .                                             .          .                                         .          .  ","                                                          .          .                                  .          0...       .                                         .          .  ","                                                          .          .                                  0...........  .........                                         .          .  ","                                                          .          .                                  .          .                                                    .          .  ","                                                          .          .                                  .          ...                                                  .          .  ","                                                          ...        ...                                .            .                                                  ...        ...","                                                            .          .                                .          ...                                                    .          .","                                                            .          .                                .          .                                                      .          .","                                                            .          .                                .          .                                                      .          .","                                                            ...        ...                              .          .                                                      .          .","                                                              .          .                              .        ...                                                    ...        ...","                                   .......    .......       ...        ...     .......    .......       .        .                                                      .          .  ","                                   .     .    .     .     . .        . .       .     .    .     .       .        .                                                      .          .  ","                           .........     ......     ..... 00.^...... 00.^.......     ......     .........        .                                                      .          .  ","                           .                            . . .      . . .                                         .                                                      .          .  ","                           .                            . . ...    . . ...                                       .                                                      .          .  ","                           .                            ...   .    ...   .                                       ...                                                    ...        ...","                           .                                ...        ...                                         .                                                      .          .","                           .                                .          .                                           .                                                      .          .","                           .                                .          .                                           .                                                      .          .","                           .                                .          .                                           .                                                      .          .","                         ...                                .          .                                         ...                                                    ...        ...","                         .                                  .          .                                         .                                                      .          .  ","                         .                       .          0...       .                                         .                                                      .          .  ","                         .                       0...........  .........                                         .                                                      .          .  ","                         .                       .          .                                                    .                                                      .          .  ","                         .                       .          ...                                                  .                                                      .          .  ","                         ...                     .            .                                                  ...                                                    ...        ...","                           .                     .          ...                                                    .                                                      .          .","                           .                     .          .                                                      .                                                      .          .","                           .                     .          .                                                      .                                                      .          .","                           .                     .          .                                                      .                                                      .          .","                           .                     .          .                                                      .                                                      .        ...","                           .       .......       .          .       .......    .......    .......    .......       .       .......    .......    .......    .......       .        .  ","                           .       .     .       .          .       .     .    .     .    .     .    .     .       .       .     .    .     .    .     .    .     .       .        .  ","                ....................     .........          .........     ......     ......     ......     .................     ......     ......     ......     .........        .  ","                .                                                                                                                                                                  .  ","                .                                                                                                                                                                  .  ","                .                                                                                                                                                                  ...","                .                                                                                                                                                                    .","                .                                                                                                                                                                    .","                .                                                                                                                                                                    .","                .                                                                                                                                                                    .","                .                                                                                                                                                                    .","                .       .......    .......    .......    .......    .......    .......    .......    .......    .......    .......    .......    .......    .......    .......       .","                .       .     .    .     .    .     .    .     .    .     .    .     .    .     .    .     .    .     .    .     .    .     .    .     .    .     .    .     .       .","                .........     ......     ......     ......     ......     ......     ......     ......     ......     ......     ......     ......     ......     ......     ........."],"moves":"llllllluullllnnllluullllnnllllllukkkkkkkEkkulllllluullllnnllllllukkkkkkyykkkkuuEkkkyykkkkuukkkyykkkkuukkkyykkkkuukkkyyEkkkkuukkuuyykkuuyykkkkklllullllllnjjjjEjnnbbjjnnbbjjbbjjjjnnjjjbbjjjjnnjjjbbjEjjjnnjjjbbjjjjnnjjjbbjjjjnnjjjjjjnllllElllllnjjjjjjjjjjllllllllllnjjjjjjjjjnlEllllluullllnnllllllnjjjjjjbbjjjjnnjjjbEbjjjjnnjjjbbjjjjnnjjjbbjjjjnnjjjjjjlllEnllllllukkkkkkyykkkkuukkkyykkkkuukkkyyEkkkkuukkkyykkkkuukkkkkkulllllllllukkkkEkkkkkkllllllluullllnnllluullllnnlluunnElluunnlllllnjjjjjjbbjjjjnnjjjbbjjjjnnjEjjbbjjjjnnjjjbbjjjjnnjjjbbjjjjnnjjjbbjEjjjnnjjjbbjjjjnnjjjbbjjjjnnjjjbbjjjjnnEjjjjjjbhhhhhhyyhhhhbbhhhyyhhhhbbhhhyyhEhhhbbhhhyyhhhhbbhhhyyhhhhbbhhhyyhhhhbbEhhhyyhhhhbbhhhyyhhhhbbhhhyyhhhhbbhhhyyEhhhhbbhhhyyhhhhbbhhhyyhhhhbbhhhyyhhhhbEbhhhyyhhhhbbhhhhhhykkkkkkkkkulllllllllElllllllluullllnnllllllukkkkkkkkkklllllElllllnnnbbjjjjjnlllllluullllnnllluulllElnnllluullllnnllluullllnnlllllllllllllEluullllnnllluullllnnllluullllnnllluullEllnnllllllukkkkkkyykkkkuukkkyykkkkuukkEkyykkkkuukkkyykkkkuukkkyykkkkuukkkyykkEkkuukkkyykkkkuukkkyykkkkuukkuluyhhkkkkEkkkkkyykkkkuukkkyykkkkuukkkyykkkkuukkkEyykkkkuukkkyykkkkuukkkyykkkkuukkkyykkkEkuukkkyykkkkuukkkyykkkkuukkkkkkyhhhhhhEyyhhhhbbhhhyyhhhhbbhhhyyhhhhbbhhhyyhhhEhbbhhhyyhhhhbbhhhyyhhhhbbhhhyyhhhhbbhhEhyyhhhhbbhhhyyhhhhbbhhhyyhhhhbbhhhyyhhEhhbbhhhyyhhhhbbhhhyyhhhhbbhhhhhhbjjjjjEjjjjnlllllllllnjjjjjjbbjjjjnnjjjjjjnllElllluullllnnllluullllnnllnjnukklllllllElnjnukkllllllllluullllnnllluullllnnlllElllnjjjjjjjjjjlllllllllluuuyykkyykkkkuEukkkyykkkkuukkkkkkulllllluullllnnllluuEllllnnllluullllnnlllllll"};
+  var TT = {"h":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAwUlEQVR42pWR0QmDMBRFrzUTKA5Q0A8XcIRiu0JHSNyhG/ghrmLBRZ4QxQ2CG6QfqRKileYSSO4J771cEmCV1noYBgB5nsOSwxkRYadSiJrzQ87afua3K4B7Vdl3v3hQCgEfsTR7ABhlZ7yxm/acme3dNCZZ2892wQEnIiLSWpuDSUar9vw74c/EbT97hw7L5yuKM6Vkzfm0JFGcmeWQzV7scU4zhxjr/w8Aas7tZqPsTkiYFsW0JHYPpeQJ8X6Stz4935JJZ/e8QgAAAABJRU5ErkJggg==","v":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAlUlEQVR42rVRwQ2EMAwziFHgkU0qViEfJrkH6iq9VSq1u5RHpFyvBwVO4EcUKXad1A2AlBIA7z0RGeZ+GJEhBvdeFiV00uEbMTiRxeAKQostqEnhtiuoYEMga9QEs7VERER7JCHM1n4cDLNhrjys0xbAa5r6Yfy9T3cTgvTNPTkUOM7h2rf+mUNeT+Ugp0t9LAdFnsMK6x5YZ+jJFuIAAAAASUVORK5CYII=","tl":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAt0lEQVR42p2RwQnDMAxFn40XKSQQL1LSrGJfMkkp1Kvk0EUSSKCjpAdTxXGgdftPQvqSvr4Ub6zrKvE0TexhrY2BSXlKKaD1HqjqTvLufIpJwMiwpmmO7Ht9ARzbQpPKGMcxU5JS84bweFIAzY/QhePlKl0uJvYo8asQCvC3AVjm4aueZR4UIG7KOzOkBJPVWu/THx83/2VrH4K1VvQcj4mEPoRtQ+v9Z7ukqoGrc1XdZdJTREKMXxAJRLbsHZAFAAAAAElFTkSuQmCC","tr":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAt0lEQVR42p2RwQnDMAxFn40XKSQQL1LSrGJfMkkp1Kvk0EUSSKCjpAdTxXGgdftPQvqSvr4Ub6zrKvE0TexhrY2BSXlKKaD1HqjqTvLufIpJwMiwpmmO7Ht9ARzbQpPKGMcxU5JS84bweFIAzY/QhePlKl0uJvYo8asQCvC3AVjm4aueZR4UIG7KOzOkBJPVWu/THx83/2VrH4K1VvQcj4mEPoRtQ+v9Z7ukqoGrc1XdZdJTREKMXxAJRLbsHZAFAAAAAElFTkSuQmCC","bl":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAtklEQVR42pVQwQnDMBCTHU+QkAEKMcQLZISSdoWOcBmiG+TTrtJHF3EgDdnAZAP3Yeq6LgRb+HEndDr5GD6w1vp6mib8QinlChHqGGMA+mEA0Miz5+l4cCQA4c3atv1X3+QJAOG7UIQxtNZRklAaD9yfKxLAkQmeaO9/xdPDuBnm75WIor9cy0oaM49Ey1aXlXQvYnzLd64UMa7NjiQAjESh2Wt+7DBF03XLVocexsw7THakbLwBtnZbvpgSFGgAAAAASUVORK5CYII=","br":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAtklEQVR42pVQwQnDMBCTHU+QkAEKMcQLZISSdoWOcBmiG+TTrtJHF3EgDdnAZAP3Yeq6LgRb+HEndDr5GD6w1vp6mib8QinlChHqGGMA+mEA0Miz5+l4cCQA4c3atv1X3+QJAOG7UIQxtNZRklAaD9yfKxLAkQmeaO9/xdPDuBnm75WIor9cy0oaM49Ey1aXlXQvYnzLd64UMa7NjiQAjESh2Wt+7DBF03XLVocexsw7THakbLwBtnZbvpgSFGgAAAAASUVORK5CYII=","cross":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAt0lEQVR42p2RwQnDMAxFn40XKSQQL1LSrGJfMkkp1Kvk0EUSSKCjpAdTxXGgdftPQvqSvr4Ub6zrKvE0TexhrY2BSXlKKaD1HqjqTvLufIpJwMiwpmmO7Ht9ARzbQpPKGMcxU5JS84bweFIAzY/QhePlKl0uJvYo8asQCvC3AVjm4aueZR4UIG7KOzOkBJPVWu/THx83/2VrH4K1VvQcj4mEPoRtQ+v9Z7ukqoGrc1XdZdJTREKMXxAJRLbsHZAFAAAAAElFTkSuQmCC","tu":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAtklEQVR42pVQwQnDMBCTHU+QkAEKMcQLZISSdoWOcBmiG+TTrtJHF3EgDdnAZAP3Yeq6LgRb+HEndDr5GD6w1vp6mib8QinlChHqGGMA+mEA0Miz5+l4cCQA4c3atv1X3+QJAOG7UIQxtNZRklAaD9yfKxLAkQmeaO9/xdPDuBnm75WIor9cy0oaM49Ey1aXlXQvYnzLd64UMa7NjiQAjESh2Wt+7DBF03XLVocexsw7THakbLwBtnZbvpgSFGgAAAAASUVORK5CYII=","td":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAt0lEQVR42p2RwQnDMAxFn40XKSQQL1LSrGJfMkkp1Kvk0EUSSKCjpAdTxXGgdftPQvqSvr4Ub6zrKvE0TexhrY2BSXlKKaD1HqjqTvLufIpJwMiwpmmO7Ht9ARzbQpPKGMcxU5JS84bweFIAzY/QhePlKl0uJvYo8asQCvC3AVjm4aueZR4UIG7KOzOkBJPVWu/THx83/2VrH4K1VvQcj4mEPoRtQ+v9Z7ukqoGrc1XdZdJTREKMXxAJRLbsHZAFAAAAAElFTkSuQmCC","tlw":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAt0lEQVR42p2RwQnDMAxFn40XKSQQL1LSrGJfMkkp1Kvk0EUSSKCjpAdTxXGgdftPQvqSvr4Ub6zrKvE0TexhrY2BSXlKKaD1HqjqTvLufIpJwMiwpmmO7Ht9ARzbQpPKGMcxU5JS84bweFIAzY/QhePlKl0uJvYo8asQCvC3AVjm4aueZR4UIG7KOzOkBJPVWu/THx83/2VrH4K1VvQcj4mEPoRtQ+v9Z7ukqoGrc1XdZdJTREKMXxAJRLbsHZAFAAAAAElFTkSuQmCC","trw":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAt0lEQVR42p2RwQnDMAxFn40XKSQQL1LSrGJfMkkp1Kvk0EUSSKCjpAdTxXGgdftPQvqSvr4Ub6zrKvE0TexhrY2BSXlKKaD1HqjqTvLufIpJwMiwpmmO7Ht9ARzbQpPKGMcxU5JS84bweFIAzY/QhePlKl0uJvYo8asQCvC3AVjm4aueZR4UIG7KOzOkBJPVWu/THx83/2VrH4K1VvQcj4mEPoRtQ+v9Z7ukqoGrc1XdZdJTREKMXxAJRLbsHZAFAAAAAElFTkSuQmCC","floor":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAKklEQVR42mN0z8lhIAUwMZAIRjXAgaqql6qqF3VsYMEqevv2ttF4oEQDAIwyBNVzML0vAAAAAElFTkSuQmCC","stone":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAfElEQVR42p2R0Q3AIAhEkV26DLM0cZYmzuIyLtMPmws5rNbyhYi+O0jnVWUVR7VmT5uKSMnm73rii+gWkfSF4EPp4ygGeWcyoWSbM5XOS4VsmmhR277paGsygzXBr2xsmgLdgOtw5HESEPJ302+cOAylkreIx1DRrG5LugGxyTn4lGzwLAAAAABJRU5ErkJggg==","boulder":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAArUlEQVR42mN0z8lhIAUwMZAIWDCFWh9PgTCO/mDYppqDTwNcKQRYczAw3J7CwICijQlZtbEsg7EsA7oeBgav21Nw+uHsYygDrhOiZ+eUKSgaII6Bq4awj/5AcCe6Q/XgCyWI2chg55QpCA3I5qH5BHs8IJuH5h4sGqplc/C7J38nRjxAjERTh2aPe04OQsM21Ryv21OwugRiPCTVocQ0JEaRownuEngaZaR5agUA9pU6YU5UAaQAAAAASUVORK5CYII=","hero":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAA1klEQVR42rWSsRHCMAxFn3MUWSQTQJcBktBkDBpjTcEABi9CA8kA6bJBSpZIB4V9CWcCHAUqdJLuf0n/7qtCa36JhB9j9TpqthmVAFxteRm+EJqTm5tKGmJOEu8Gpe5crc/h1FsNlQD3y3HKn0RPz6itTEW51580HEvyFFsETl/TDQ6QNgAKrZPn9UZsN+KhfY2vjdjll/x1aTEZQDdisnl3THj+VTmAPA1FFOrVGoeb8xfylM15nnvksjW6EWmDhgm67KXDza13VloKrY3Yvo456u9ufQDo1U7O9sbRgAAAAABJRU5ErkJggg==","pit":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAWUlEQVR42mNgIAO45+QQpW7bfwYGBiZi9Wz7D6GZiLIHppqBgYGFoPN2TpmCzGUi1cMjUgML/kAkoCFn4jbsqm5vn6Lqie4kVVUvPAbn3N6OogG/ajQ9pAEAxgIW6ZZ6QXIAAAAASUVORK5CYII=","hole":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAaElEQVR42mN0z8lhIAWwYArtnDIFzsY0jgmPagh3p9dknBrQVCPEkfQwEVTN4MUI0QPRxkSUT70YcfqBIKCnBiJjEMUGYvQQ56Rt/xkYGNy35WLRgMWSbf/dt+VCVDMwMDCSmvhoH6wAmQIe1ij6M1MAAAAASUVORK5CYII=","stairs":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAxUlEQVR42p2SMQ7CMAxFX1AHLsHICRg5QMZcJM1dWnwQ2NqFjS3ch80MaVWSplKFhyix/P2frcDusN4DTXoo9HazNIyYIqUeBYXOEh2qREd0U1L94mDW/VSnizElzyhyWOqgs0t1UnYWzdstAjxhoIUWmM8wgM8EFSSvALcfpMRTIsE0JbNDdHSr1WWCy4m3Q/rJAQjnUtBkfALg70gPAXlkPBWHRJUcpK/wlA6JKj55fQCux4rA7P9FlS1txSjCH1FMvze+PQtEXOREXVMAAAAASUVORK5CYII=","goal":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAIAAACQkWg2AAAAvUlEQVR42pWS6w2DMAyEv0MMQyYpu9Tdxt2FTmK2SX8kpRAeElFknaU7x7FPDzPunL7JJ/d1Ou7KdQdsQ4Ad6DeCyR0DQw4gp6SNpmsKyHfY+Kw0fdN6zgBSBRXDePYCMM9RooRENuD/yEYwP0MipQQ1RsTVlNakiIiI4Z1O9yCWvhMwDOlwcd2yoAy8KH2XvxZQap2ONdsOO8DioG7jAgevvGyUVBefrs5x8q9wYa8N2rY0mgmW27AB3bX3FxeHSMnfG1KzAAAAAElFTkSuQmCC"};
+  var IMG = {};
+  Object.keys(TT).forEach(function (k) { var i = new Image(); i.onload = function () { draw(); }; i.src = TT[k]; IMG[k] = i; });
+  var vx = view.getContext("2d"), mini = document.getElementById("pv-mini"), mx = mini.getContext("2d");
+  var msgEl = document.getElementById("pv-msg"), statEl = document.getElementById("pv-stat"), autoBtn = document.getElementById("pv-auto"), zoomBtn = document.getElementById("pv-zoom");
+  var H = L.rows.length, W = L.rows[0].length;
+  var solid, wallK, boulders, holes, visited, hero, goal, hist, turns, pushes, dead, won, zoom = 1, autoTimer = null, CELL = 24;
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  function idx(x, y) { return y * W + x; }
+  function inb(x, y) { return x >= 0 && y >= 0 && x < W && y < H; }
+  function isSolid(x, y) { return !inb(x, y) || solid[idx(x, y)]; }
+  function wallKeyAt(x, y) {
+    function nearFloor(a, b) { for (var i = -1; i <= 1; i++) { for (var j = -1; j <= 1; j++) { if ((i || j) && !isSolid(a + i, b + j)) { return true; } } } return false; }
+    if (!nearFloor(x, y)) { return ""; }
+    function w(a, b) { return isSolid(a, b) && inb(a, b) && nearFloor(a, b); }
+    var N = w(x, y - 1), S = w(x, y + 1), E = w(x + 1, y), Wd = w(x - 1, y), n = N + S + E + Wd;
+    if (n === 4) { return "cross"; }
+    if (n === 3) { return !N ? "td" : !S ? "tu" : !E ? "tlw" : "trw"; }
+    if (N && S) { return "v"; }
+    if (E && Wd) { return "h"; }
+    if (S && E) { return "tl"; }
+    if (S && Wd) { return "tr"; }
+    if (N && E) { return "bl"; }
+    if (N && Wd) { return "br"; }
+    return (N || S) ? "v" : "h";
+  }
+  function load() {
+    stopAuto();
+    solid = new Uint8Array(W * H); boulders = new Uint8Array(W * H); holes = new Uint8Array(W * H); visited = new Uint8Array(W * H);
+    var glyph = new Array(W * H), x, y;
+    for (y = 0; y < H; y++) {
+      for (x = 0; x < W; x++) {
+        var ch = L.rows[y][x], k = idx(x, y); glyph[k] = ch;
+        if (ch === " " || ch === "p" || ch === "b") { solid[k] = 1; }
+        if (ch === "0") { boulders[k] = 1; }
+        if (ch === "^") { holes[k] = 1; }
+        if (ch === "@") { hero = [x, y]; }
+        if (ch === "G") { goal = [x, y]; }
+      }
+    }
+    wallK = new Array(W * H);
+    for (y = 0; y < H; y++) { for (x = 0; x < W; x++) { var k2 = idx(x, y); if (solid[k2]) { wallK[k2] = glyph[k2] === "p" ? "pit" : glyph[k2] === "b" ? "stairs" : wallKeyAt(x, y); } } }
+    hist = []; turns = 1; pushes = 0; dead = false; won = false; visited[idx(hero[0], hero[1])] = 1;
+    mini.width = W; mini.height = H;
+    say("Walk right along the corridor. The goal is far away at the top right (see the small map).");
+    draw();
+  }
+  function snap() { return { hero: hero.slice(), b: boulders.slice(), h: holes.slice(), turns: turns, pushes: pushes, dead: dead, won: won }; }
+  function undo() { stopAuto(); var s = hist.pop(); if (!s) { return; } hero = s.hero; boulders = s.b; holes = s.h; turns = s.turns; pushes = s.pushes; dead = s.dead; won = s.won; say("Undone."); draw(); }
+  function bad(x, y) { return isSolid(x, y) || boulders[idx(x, y)]; }
+  function say(m) { msgEl.textContent = m; }
+  function move(key, quiet) {
+    if (dead || won) { if (!quiet) { say(dead ? "You fell through a hole. Undo or reset." : "You already reached the goal."); } return false; }
+    if (key === ".") { hist.push(snap()); turns++; draw(); return true; }
+    var d = DIRS[key]; if (!d) { return false; }
+    var ux = hero[0], uy = hero[1], dx = d[0], dy = d[1], x = ux + dx, y = uy + dy, diag = dx && dy, k = idx(x, y);
+    if (isSolid(x, y)) { return false; }
+    if (diag && bad(ux, y) && bad(x, uy)) { if (!quiet) { say("You cannot pass that way."); } return false; }
+    if (boulders[k]) {
+      var rx = x + dx, ry = y + dy, rk = idx(rx, ry);
+      if (isSolid(rx, ry) || boulders[rk]) { if (!quiet) { say("You try to move the boulder, but in vain."); } return false; }
+      if (diag) { if (!quiet) { say("The boulder won't roll diagonally on this floor."); } return false; }
+      hist.push(snap()); boulders[k] = 0; pushes++;
+      if (holes[rk]) { holes[rk] = 0; say("The boulder falls into and plugs a hole in the floor!"); }
+      else { boulders[rk] = 1; say("With great effort you move the boulder."); }
+    } else {
+      hist.push(snap()); if (!quiet) { say(""); }
+    }
+    hero = [x, y]; turns++; visited[k] = 1;
+    if (holes[k]) { dead = true; say("You fell through a hole and left the level. Press Undo to go back."); }
+    else if (x === goal[0] && y === goal[1]) { won = true; say("You reached the goal! The branches you took (top = off, bottom = on) set the switches so that both rules hold."); }
+    draw(); return true;
+  }
+  function run(key) {
+    for (var i = 0; i < 300; i++) {
+      var before = pushes; if (!move(key, true)) { break; } if (pushes !== before || dead || won) { break; }
+      var x = hero[0], y = hero[1], open = 0;
+      for (var dd in DIRS) { if (DIRS[dd][0] && DIRS[dd][1]) { continue; } if (!isSolid(x + DIRS[dd][0], y + DIRS[dd][1])) { open++; } }
+      if (open > 2) { break; }
+    }
+  }
+  var TXT = { floor: "#5c6970", wall: "#93a8b3", boulder: "#f0a35e", hole: "#c78bf0", hero: "#ffffff", goal: "#f2cf4a" };
+  function textWall(x, y) { var k = wallK[idx(x, y)]; if (!k) { return ""; } if (k === "pit") { return "^"; } if (k === "stairs") { return "<"; } return (k === "v" || k === "tlw" || k === "trw") ? "|" : "-"; }
+  function draw() {
+    if (!hero || !view.width) { return; }
+    var c = Math.round(CELL * zoom), cols = Math.floor(view.width / c), rows = Math.floor(view.height / c);
+    var ox = Math.max(0, Math.min(W - cols, hero[0] - (cols >> 1))), oy = Math.max(0, Math.min(H - rows, hero[1] - (rows >> 1)));
+    vx.fillStyle = "#000"; vx.fillRect(0, 0, view.width, view.height); vx.imageSmoothingEnabled = false;
+    vx.font = Math.round(c * 0.95) + "px VT323, monospace"; vx.textAlign = "center"; vx.textBaseline = "middle";
+    for (var j = 0; j < rows; j++) {
+      for (var i = 0; i < cols; i++) {
+        var x = ox + i, y = oy + j; if (!inb(x, y)) { continue; }
+        var k = idx(x, y), px = i * c, py = j * c, t, col, ch;
+        if (solid[k]) { t = wallK[k]; ch = textWall(x, y); col = t === "pit" ? TXT.hole : TXT.wall; }
+        else if (x === hero[0] && y === hero[1]) { t = "hero"; ch = "@"; col = TXT.hero; }
+        else if (boulders[k]) { t = "boulder"; ch = "0"; col = TXT.boulder; }
+        else if (holes[k]) { t = "hole"; ch = "^"; col = TXT.hole; }
+        else if (x === goal[0] && y === goal[1]) { t = "goal"; ch = "G"; col = TXT.goal; }
+        else { t = "floor"; ch = "."; col = TXT.floor; }
+        if (tileMode) {
+          if (t && IMG[t] && IMG[t].complete) {
+            if ((t === "hero" || t === "boulder" || t === "goal") && IMG.floor.complete) { vx.drawImage(IMG.floor, px, py, c, c); }
+            vx.drawImage(IMG[t], px, py, c, c);
+          }
+        } else if (ch) { vx.fillStyle = col; vx.fillText(ch, px + c / 2, py + c / 2 + 1); }
+        if (x === goal[0] && y === goal[1]) { vx.strokeStyle = TXT.goal; vx.lineWidth = 2; vx.strokeRect(px + 1, py + 1, c - 2, c - 2); }
+      }
+    }
+    var img = mx.createImageData(W, H), d = img.data;
+    for (var p = 0; p < W * H; p++) {
+      var r = 0, g2 = 0, b = 0;
+      if (!solid[p]) { r = 48; g2 = 58; b = 64; if (visited[p]) { r = 76; g2 = 122; b = 134; } }
+      else if (wallK[p]) { r = 24; g2 = 30; b = 34; }
+      if (boulders[p]) { r = 240; g2 = 163; b = 94; }
+      if (holes[p]) { r = 199; g2 = 139; b = 240; }
+      d[p * 4] = r; d[p * 4 + 1] = g2; d[p * 4 + 2] = b; d[p * 4 + 3] = 255;
+    }
+    mx.putImageData(img, 0, 0);
+    var dot = Math.max(3, W / 60);
+    mx.fillStyle = "#f2cf4a"; mx.beginPath(); mx.arc(goal[0] + .5, goal[1] + .5, dot, 0, 7); mx.fill();
+    mx.fillStyle = "#fff"; mx.beginPath(); mx.arc(hero[0] + .5, hero[1] + .5, dot, 0, 7); mx.fill();
+    mx.strokeStyle = "rgba(255,255,255,.7)"; mx.lineWidth = Math.max(1, W / 200); mx.strokeRect(ox, oy, cols, rows);
+    statEl.textContent = "Turns: " + turns + "   Boulders pushed: " + pushes + (dead ? "   FELL" : won ? "   ON THE GOAL" : "");
+  }
+  function stopAuto() { if (autoTimer) { clearInterval(autoTimer); autoTimer = null; } autoBtn.textContent = "Show solution"; }
+  autoBtn.addEventListener("click", function () {
+    if (autoTimer) { stopAuto(); return; }
+    load();
+    var seq = L.moves.replace(/E/g, ""), i = 0;
+    if (reduce) { for (; i < seq.length; i++) { move(seq[i], true); } say("Solution applied. The light trail on the small map shows the route."); return; }
+    autoBtn.textContent = "Stop";
+    autoTimer = setInterval(function () { if (i >= seq.length) { stopAuto(); return; } move(seq[i++], true); }, 10);
+  });
+  $$("#pv .pad button").forEach(function (b) { b.addEventListener("click", function () { stopAuto(); move(b.getAttribute("data-k")); }); });
+  document.getElementById("pv-undo").addEventListener("click", undo);
+  document.getElementById("pv-reset").addEventListener("click", load);
+  zoomBtn.addEventListener("click", function () {
+    zoom = zoom === 1 ? 0.5 : zoom === 0.5 ? 0.25 : 1;
+    zoomBtn.textContent = zoom === 0.25 ? "Zoom in" : "Zoom out";
+    draw();
+  });
+  view.addEventListener("click", function () { view.focus({ preventScroll: true }); });
+  view.addEventListener("keydown", function (e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) { return; }
+    var k = ARROWS[e.key] || e.key, low = k.toLowerCase();
+    if (DIRS[low]) { e.preventDefault(); stopAuto(); if (e.shiftKey) { run(low); } else { move(low); } }
+    else if (k === ".") { e.preventDefault(); move("."); }
+    else if (e.key === "Backspace") { e.preventDefault(); undo(); }
+  });
+  var kh2 = document.getElementById("pb-kh2"), kh2off = kh2 ? kh2.textContent : "";
+  kbHint(view, kh2, "Keys active: arrow keys move, Shift + arrow runs, Backspace undoes. Purple squares are holes.", kh2off);
+  function fit() {
+    var pw = view.parentNode.clientWidth;
+    if (!pw) { return; }
+    var w = Math.min(960, Math.max(240, pw));
+    if (w !== view.width) { view.width = w; view.height = Math.round(w * 0.62); }
+    draw();
+  }
+  window.addEventListener("resize", fit);
+  load(); fit();
+  return { fit: fit, draw: draw };
+})();
 
 /* ---------- initial hash ---------- */
 if (location.hash) {
