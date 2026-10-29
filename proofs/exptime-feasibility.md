@@ -8,12 +8,23 @@ present; see §7).
 
 ## 0. Verdict
 
-**PARTIAL / conditional GO.** A natural language with a *clean* adversary mechanism exists (§3: a teleportation trap
-inside a teleport-restricted zone, the Wizard's-Tower mechanism, plus Fumbling to remove the "escape" roll). It gives a
-binary, positional, non-null, unboundedly reusable nature choice on a single level with no extra nature power found.
-The source side is standard (§4: alternating LBA → "door game" with ∀-vertices). The open, expensive part is purely
-boulder engineering: **reusable, forced door gadgets and a reusable crossover in Push-1F with the Sokoban rules**
-(§5 R1). Without them the result does not follow; with them it is EXPTIME-complete. Estimated effort §6.
+**PARTIAL → conditional GO.**
+- **Language:** L_OFF^{W+C} under R3 = L_OFF^W (hunger off, mongen off, Push-1F boulders, Sokoban rules, heavy hero)
+  + teleport traps inside a `des.teleport_region{exclude=Z}` zone + one cursed pair of fumble boots; `noteleport` dropped.
+- **Nature mechanism (new, not in the parallel audits): the restricted teleport coin C (§3).** A seen teleport trap in
+  a teleport-restricted rectangle (the Wizard's-Tower `tele_jump_ok` rule) sends the hero to exactly one of two cells
+  A, B, nature's choice; Fumbling removes the only veto (seen-trap escape). It meets all of exptime-sources.md's
+  N1-N4 (forced, non-stallable, one-way-able, unboundedly reusable, single level, nothing consumed) and the model's
+  H4/H6/H7 (positional, no new creators, zero damage) — VERIFIED line by line, STRONG as a lemma, witness W9 pending.
+  It is the best candidate found: doors veto (FAILED), crawl-out has a null (FAILED), pool fill consumes boulders
+  (FAILED: ≤ poly choices ⇒ PSPACE), boulder teleport is global (FAILED), monsters are a large audit and the hero can
+  swap with peacefuls deterministically (hack.c:2154-2169).
+- **Source:** Stockmeyer–Chandra **G6** (as recommended in exptime-sources.md; ALBA route §4.2 as backup), realized as
+  a planar one-agent system of self-closing doors + diodes + crossovers + nature forks (§4-5).
+- **What is not done (the GO condition):** Push-1F's SCD/diode/crossover are only *checkable, nonlocal* 1-player
+  simulations (Ani et al. Def. 5.1-5.3). They must be re-proved **game-safe** (winning strategy never enters a broken
+  state on any nature branch; coin kept off the check path). If that lifts, L_OFF^{W+C} (R3) is EXPTIME-complete;
+  if not, own gadgets are needed (high risk). Effort §7: ~2-4 weeks of agent sessions, dominated by that step.
 
 ## 1. What EXPTIME-hardness needs (STRONG, standard)
 
@@ -89,7 +100,12 @@ So C = a ∀-vertex with in-port T and out-ports A, B, reusable forever, state-f
   start cell s in `region` and Z in `exclude` (u_on_rndspot uses `place_lregion(region, exclude)`); with `dir="down"`
   and `dir="up"` two independent rectangles exist ⇒ up to 3 bounded zones (D∩U, D\U, U\D). One coin suffices (§4.3).
 - Phase2-spec Rev. 3 stair pocket must stay outside Z.
-- R2 view: the same trap is a *player* choice under R2 — consistent with 1.5.
+- R2 view: the same trap is a *player* choice under R2 — consistent with 1.5. R4 view: the coin can be re-triggered,
+  so a probability-1 player could retry until lucky (fails exptime-sources N5): the result is for R3 only (model H8).
+- Model checklist (exptime-model.md): C1 (no creator: teleport moves only the hero; boots are one declared record),
+  C2 (`safe_teleds` ≤ 40 tries + one O(w·h) scan, teleport.c:717-770; no uncapped loop), C5 (no level change: TELEP_TRAP
+  ≠ LEVEL_TELEP; the only `morehungry` in teleport.c is the `^T` path, teleport.c:1159-1160, not reached), H6 (no
+  hero gain), H7 (zero HP cost per coin use) — all hold [STRONG].
 
 ### 3.4 Language L_OFF^{W+C}
 L_OFF^W (hunger off, mongen off, harness, pettype:none, stair pocket) with: level flag `noteleport` removed (keep
@@ -99,7 +115,16 @@ wearing only gives nature an extra veto). Semantics R3 (full information, adapti
 
 ## 4. Source problem (task 2)
 
-4.1 **Choice.** Direct: acceptance of a fixed alternating linear-space TM M (ASPACE(n) = EXPTIME [ext: Chandra,
+4.0 **Chosen: G6** (Stockmeyer–Chandra 1979; verbatim in Hearn 2006 §6.2.1 / Demaine–Hearn CCC 2008): CNF F over
+X ∪ Y, players flip ≤ 1 own variable or pass, Player I wins iff F ever becomes true; infinite play = no win for I
+(= our REACH semantics). Construction (exptime-sources.md §5): hub → player selector (free fork) → forced set path
+(open own literal SCDs, open-then-traverse the complementary ones = forced close) → **nature tree of ⌈log₂(2|Y|+1)⌉
+coin uses** → forced set path for y_j → hub; checker = clauses in series, each clause = parallel literal-SCD traversals,
+then t. With one physical coin, nature's tree uses context SCDs as in 4.3 (open K_u before the coin, demux on K_u
+after it; the demux traversal closes K_u by itself — SCDs make this free). Checker passability is monotone in open
+doors and the only opening routes are legitimate set paths, so cheating never helps [STRONG for the abstract system].
+
+4.1 **Backup: ALBA.** Direct: acceptance of a fixed alternating linear-space TM M (ASPACE(n) = EXPTIME [ext: Chandra,
 Kozen, Stockmeyer, JACM 28(1) 1981]). Reason: our "nature" moves only where the hero walks, so the clean target is a
 one-token game graph with ∀-vertices, not a symmetric game where the opponent moves anywhere (2CL, G-games). 2CL
 (Hearn–Demaine, unbounded 2-player constraint logic, EXPTIME-complete) and locking-2-toggle 2-player motion planning
@@ -185,3 +210,14 @@ Witness scripts to run in the real game (tools/witness, WSL headless build, #wiz
 - W10 `exp_coin_boulder.lua`: push a boulder onto T ⇒ boulder relocates outside Z (documents M6 as a hazard).
 - W11 `exp_fumble_push.lua`: with fumble boots worn, W1-W4 behave identically (pushes, refusals, no squeeze).
 Overall: **PARTIAL** now; GO if L4 succeeds (estimate 2-4 weeks of agent sessions, dominated by L4).
+(L3 is now "G6 → planar SCD + coin system EXPTIME-hard", §4.0, replacing the ALBA lemma.)
+
+Top 3 risks: (1) Push-1F's checkable/postselected SCD, diode and crossover simulations are 1-player Karp-level
+results; lifting them to games (broken-state absorption on every nature branch, coin off the check path) is unproved.
+(2) The door-universality crossover (Ani et al. FUN 2020, Lemma 2.6) and Push-1F's single-use/weak crossovers must
+be reusable and leak-free against an adaptive hero in a game. (3) Hidden nature power from the whitelist growth:
+Fumbling timeouts, dropped `noteleport`, encumbrance margin with boots (520 vs wc ≥ 550, attribute drift under R3),
+and the invariant that no boulder ever reaches a teleport trap (M6 = global relocation).
+
+Synthesis note: exptime-mech-monsters-traps.md was not yet written when this file was finalized; its monster-walker
+candidate (M8) should be compared against C, but C already satisfies N1-N4 with a far smaller audit.
