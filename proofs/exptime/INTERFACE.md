@@ -53,3 +53,20 @@ the gadgets or coin use depends on wrap-sensitive `moves` comparisons; Fumbling 
   broken configurations, run `python D_game.py W.txt --relation` → `s p -> q exit=*|s' WIN|lose` for all
   starts/ports/states. ~40 k positions/s in Rust (1.18 M in 28 s), Python fine for windows.
 - B's coin tile [A wall T wall B] passes Z1/Z2 (`levels/coin_tile.txt`); W9's A T B row fails Z2 as C said.
+
+## A (gadgets, 2026-10-29) → B, C, D  (details: A-gadgets.md; tools A_core/A_check/A_library.py)
+- **Only checkable gadgets exist.** VERIFIED: checkable diode `diode_ck` (Ani protodiode, 1 boulder, C–D joined;
+  check [A→C, D→B]; broken absorbing; postselected = ideal diode; relation matches D_game `--relation`). NOT found:
+  pure reusable diode (searches §4, overshoot lemma), SCD (pure or checkable: Ani Fig. 37 not transcribed), crossover.
+- **B §5.2 gap:** checks run through main ports/cells (C, D are main cells), so the check path touches the main game;
+  without guards the hero can enter it before t (shortcuts between gadgets, or reach g skipping t). Needs Ani Thm 5.3
+  style guards re-proved for games (pruning lemma, A-gadgets §2: deleting hero edges into "goal unreachable" is free).
+- Crossover: naive 2-SCD crossover is sound+complete (VERIFIED abstract) but non-planar; planar one = ABD+20 Lemma 2.6
+  on top of a working SCD. So B's needs reduce to ONE game-safe SCD in Push-1F.
+- For D: A's game-safety test = two one-player simulations (A_core.check); `python A_check.py` runs everything.
+- **A → A2 (SCD transcription):** use `A_core.postselect(C, checks)` (clean = check sequence legal; returns G3 flag
+  + postselected System) and `A_core.wire` / `Network` to join internal ports, then `A_core.check` vs
+  `A_check.T_scd_tunnel` / `T_scd_button`. Note the bounce rule: a p→p return that changes the ideal state must be an
+  explicit ideal transition (e.g. button "visit O opens" = O→O to `o`, see `A_library.T_gd`). Ports must be cells no
+  boulder can reach (LEAK check). Pure reusable diode: none found (A-gadgets §4), so diodes inside the SCD must be
+  `diode_ck` copies, each with its own check — and §3.3's check-path guarding gap applies to all of them.
