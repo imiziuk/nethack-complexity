@@ -98,6 +98,11 @@ pre.mini { margin: 0; padding: .2rem .35rem; font-size: .74rem; line-height: 1.1
 .stb { display: flex; flex-wrap: wrap; gap: .3rem; align-items: center; }
 .stn { font-size: .78rem; color: var(--muted); margin-left: .3rem; }
 .stc { font-size: .88rem; min-height: 3.6em; color: var(--ink); }
+.stc.bad { color: var(--bad); }
+.anp { font: 600 .78rem/1.2 var(--f-mono); color: var(--accent); margin: .4rem 0 0; min-height: 1.2em; }
+.gal-anim { min-height: 8rem; }
+.gx .c.nope { box-shadow: inset 0 0 0 3px #e0403a; }
+.gal-h { margin: 1.4rem 0 .2rem; }
 /* reduction diagram */
 .rdg svg { display: block; width: 100%; max-width: 30rem; height: auto; margin: 0 auto; }
 .rd-b { fill: var(--sheet); stroke: var(--rule); stroke-width: 1.5; }
@@ -390,15 +395,89 @@ pre.mini { margin: 0; padding: .2rem .35rem; font-size: .74rem; line-height: 1.1
 <div class="gal-step" data-g="precursor" data-k="static"></div>
 <div class="row"><button type="button" class="btn sm" data-open-lab="precursor">Open in lab</button></div>
 </article>
-<article class="gcard ph">
-<h3>Self-closing door <span class="chip open">NOT BUILT</span></h3>
-<p>Wanted: a door you open by visiting a button, which lets you through once and then shuts behind you.</p>
-<p><b>Why it is hard:</b> to shut behind you, a boulder has to end up <i>behind</i> the hero. But pushing always leaves the hero on the cell the boulder just left, so the button and the tunnel end up connected, and the hero can slip through without paying. Every design found so far leaks this way. A checkable version (Ani et al. Fig. 37: a precursor, two diodes and a 1-toggle) exists for one player; its pieces are being transcribed and checked right now (previous card), and it would still need the game-level guards.</p>
+<article class="gcard">
+<h3>Self-closing door <span class="chip ver">CHECKABLE, VERIFIED</span></h3>
+<p>A door you open by visiting a button, which lets you through once and then shuts behind you. Built from the published design (Ani et al. Fig. 37): a precursor, a 1-toggle and two one-way corridors, 6 boulders. Machine-checked in our model (10,927 states): used as intended it behaves exactly like an ideal self-closing door; misuse jams it shut for good, which only hurts the hero. See the three animations below (opening it, passing through, refused while closed).</p>
+<p><b>Still open:</b> the final check path and its guards for a game against the dice, and confirmation against the real game engine (running).</p>
 </article>
 <article class="gcard ph">
-<h3>Reusable crossover <span class="chip open">NOT BUILT</span></h3>
-<p>Wanted: two corridors that cross, each usable forever, with no way to switch from one to the other.</p>
-<p><b>Why it is hard:</b> the obvious crossover made of two self-closing doors is correct but cannot be drawn flat: its two paths would have to cross somewhere. A flat one is known on paper (built from self-closing doors), so the whole problem shrinks to one missing piece: a game-safe self-closing door. The NP proof's crossover is single-use, and single-use pieces are forbidden here because the game can last exponentially long.</p>
+<h3>Reusable crossover <span class="chip open">ON PAPER</span></h3>
+<p>Two corridors that cross, each usable forever. Built from about 20 self-closing doors (Ani, Demaine, Diomidov, Hendrickson, Lynch 2020, Fig. 12); the wiring is machine-checked as an abstract network. Not yet assembled as one boulder map; flatness is read off the paper's figures.</p>
+</article>
+</div>
+<h3 class="gal-h" id="anims">Animated walk-throughs</h3>
+<p class="d0only">Every gadget in motion. The hero's moves are not drawn by hand: a computer searched for the shortest walk under NetHack's push rules. Red squares are moves the rules refuse.</p>
+<p data-dm="1">Frames from <code>tools/visual/animate_gadgets.py</code> (GIFs in <code>media/exptime/anim/</code>): BFS-shortest walks over (hero, boulders, holes) with the <code>A_core.py</code> model, every step re-checked against <code>A_core.Board.moves</code>; each script asserts the final state and the traversal against the gadget's system (<code>A_core.explore</code>, <code>A2_scd</code> networks). Refusals: the closest spot the hero can reach, then each blocked move toward the goal.</p>
+<div class="gal">
+<article class="gcard">
+<h3>G_D one-way door <span class="chip ver">NP proof</span></h3>
+<p>Closed from Q; opened from E by pushing &kappa; into the pocket; then open both ways. Single use.</p>
+<div class="gal-anim" data-a="np_gd"></div>
+</article>
+<article class="gcard">
+<h3>G_C forced closing site <span class="chip ver">NP proof</span></h3>
+<p>The clause path K&rarr;F passes while W sits on N. The variable lane P&rarr;R must push W into Q, which closes the clause path for good.</p>
+<div class="gal-anim" data-a="np_gc"></div>
+</article>
+<article class="gcard">
+<h3>G_X crossover, K over P <span class="chip ver">NP proof</span></h3>
+<p>P crosses freely; P cannot enter K (&tau; is backed by &delta;, below S is a hole). K crosses once by plugging the hole with the token &tau;.</p>
+<div class="gal-anim" data-a="np_gx"></div>
+</article>
+<article class="gcard">
+<h3>Checkable diode: A&rarr;B <span class="chip ver">VERIFIED</span></h3>
+<p>Push X east, out at C, through the C&ndash;D corridor, in at D, push X back west, out at B. Same state as before.</p>
+<div class="gal-anim" data-a="diode_use"></div>
+</article>
+<article class="gcard">
+<h3>Diode overshoot</h3>
+<p>The shortest way to open B&rarr;A: push X twice. It sticks on e2 for good (broken, absorbing), and B&rarr;A is open.</p>
+<div class="gal-anim" data-a="diode_break"></div>
+</article>
+<article class="gcard">
+<h3>SLOT1 <span class="chip fail">FAILS</span></h3>
+<p>Intended A&rarr;B with the return push, then the shortest counterexample: the same overshoot opens B&rarr;A.</p>
+<div class="gal-anim" data-a="slot1_break"></div>
+</article>
+<article class="gcard">
+<h3>UTURN2 <span class="chip fail">FAILS</span></h3>
+<p>Intended A&rarr;B (both boulders back in place), then the shortest play that leaves the interlock open and lets the hero walk B&rarr;A.</p>
+<div class="gal-anim" data-a="uturn2_break"></div>
+</article>
+<article class="gcard">
+<h3>Proto-precursor checks <span class="chip ver">VERIFIED</span></h3>
+<p>Ani et al. Fig. 36a: the checking sequence A&rarr;D, C&rarr;G, B&rarr;A, B&rarr;C, each leg a shortest traversal that keeps the rest of the checks legal.</p>
+<div class="gal-anim" data-a="pp_checks"></div>
+</article>
+<article class="gcard">
+<h3>Precursor <span class="chip ver">VERIFIED</span></h3>
+<p>A, B, C joined to T. State 1: T&rarr;F switches to state 2 (via T&rarr;T); state 2: T&rarr;E switches back.</p>
+<div class="gal-anim" data-a="precursor"></div>
+</article>
+<article class="gcard">
+<h3>1-toggle <span class="chip ver">VERIFIED</span></h3>
+<p>The precursor with T closed: E&rarr;F flips it, E&rarr;F again is refused, F&rarr;E flips it back.</p>
+<div class="gal-anim" data-a="toggle"></div>
+</article>
+<article class="gcard">
+<h3>Self-closing door: open (O&rarr;O) <span class="chip ver">VERIFIED</span></h3>
+<p>Fig. 37 drawn flat: 1-toggle (top), precursor (middle), two diodes (bottom), 6 boulders. Visiting O flips the precursor to open.</p>
+<div class="gal-anim" data-a="scd_open"></div>
+</article>
+<article class="gcard">
+<h3>Self-closing door: I&rarr;J closes it <span class="chip ver">VERIFIED</span></h3>
+<p>Through diode 1, the precursor (E to F) and diode 2. Passing switches the precursor back to closed behind the hero.</p>
+<div class="gal-anim" data-a="scd_pass"></div>
+</article>
+<article class="gcard">
+<h3>Self-closing door: closed, I&rarr;J refused</h3>
+<p>Without a visit to O the precursor keeps E shut: the hero gets through diode 1 and stops.</p>
+<div class="gal-anim" data-a="scd_refused"></div>
+</article>
+<article class="gcard">
+<h3>Teleport coin tile</h3>
+<p>[A wall T wall B] with entry E (rule Z2). Stepping on T, nature picks A or B; each leaves by its own exit. Both outcomes shown.</p>
+<div class="gal-anim" data-a="coin"></div>
 </article>
 </div>
 <p data-dm="2"><b>The obstruction (A-gadgets &sect;4).</b> <i>Overshoot lemma</i>: if a boulder moves p&rarr;q by a push and later back q&rarr;p, the return push is made from q+d, so q+d is floor; right after the first push the hero stands on p and can push again, sending the boulder to q+d. Every back-and-forth track has an overshoot state; it is harmless only if dead, and a guard boulder on q+d has the same problem. <i>Backward-following</i>: after an A&rarr;B traversal the hero can retrace the walk backwards until some push put a boulder on an earlier walked cell, so every diode traversal must push a boulder behind the hero, and the next A-traversal must clear it: again a back-and-forth track. Both <span class="chip strong">STRONG</span>; that this rules out every pure diode is a <span class="chip conj">CONJECTURE</span>.</p>
@@ -524,6 +603,6 @@ pre.mini { margin: 0; padding: .2rem .35rem; font-size: .74rem; line-height: 1.1
 </section>
 </main>
 </div>
-<script src="exptime.js?v=20261029e"></script>
+<script src="exptime.js?v=20261029f"></script>
 </body>
 </html>

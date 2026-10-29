@@ -550,12 +550,14 @@ function drawGrid(host, rows, opts) {
       if (tiles) {
         var base = wall ? TILES[wallTile(g, x, y)] : TILES.floor, top = null;
         if (ch === "0") { top = TILES.boulder; } else if (ch === "@") { top = TILES.hero; } else if (ch === "^") { top = TILES.tele; }
-        else if (ch === "G") { top = TILES.goal; }
+        else if (ch === "*") { top = TILES.hole; }
+        else if (ch === "G" && !opts.noGoal) { top = TILES.goal; }
         c.style.backgroundImage = (top ? "url(" + top + "), " : "") + "url(" + base + ")";
-        if (ch >= "A" && ch <= "Z" && ch !== "G") { c.appendChild(h("b", { text: ch })); cls += " port"; }
+        if (ch >= "A" && ch <= "Z" && (ch !== "G" || opts.noGoal)) { c.appendChild(h("b", { text: ch })); cls += " port"; }
         if (opts.over && opts.over[x + "," + y]) { c.appendChild(h("b", { text: opts.over[x + "," + y] })); }
       } else {
         var t = wall ? (ch === "#" ? "#" : " ") : ch;
+        if (ch === "*") { t = "^"; cls += " trap hole"; }
         if (ch === "0") { cls += " bd"; } else if (ch === "@") { cls += " hero"; } else if (ch === "^") { cls += " trap"; }
         else if (ch >= "A" && ch <= "Z") { cls += " port"; }
         if (opts.over && opts.over[x + "," + y] && !wall && ch === ".") { t = opts.over[x + "," + y]; cls += " ov"; }
@@ -1059,12 +1061,76 @@ function gallery() {
 }
 
 /* =====================================================================
+   Animated walk-throughs (frames from tools/visual/animate_gadgets.py:
+   BFS-shortest walks under A_core's movement model, same as the GIFs
+   in media/exptime/anim/). Drawn with drawGrid, so Text/Tiles applies.
+   ===================================================================== */
+function animRows(A, f) {
+  var g = A.rows.map(function (r) { return r.split(""); });
+  f.o.forEach(function (c) { g[c[1]][c[0]] = "*"; });
+  f.b.forEach(function (c) { g[c[1]][c[0]] = "0"; });
+  if (f.h) { g[f.h[1]][f.h[0]] = "@"; }
+  return g.map(function (r) { return r.join(""); });
+}
+function animPlayer(host, A) {
+  var n = A.frames.length, i = 0, timer = null, playing = false, userPaused = false, visible = false;
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var ph = h("p", { class: "anp" }), g = h("div", {}), cap = h("p", { class: "stc" }), ctr = h("span", { class: "stn" });
+  var play = h("button", { type: "button", class: "btn sm", text: "▶ Play", onclick: function () {
+    if (playing) { userPaused = true; stop(); } else { userPaused = false; start(); } } });
+  var prev = h("button", { type: "button", class: "btn sm ghost", text: "◀", "aria-label": "Previous step", onclick: function () { userPaused = true; stop(); show(i - 1); } });
+  var next = h("button", { type: "button", class: "btn sm ghost", text: "▶", "aria-label": "Next step", onclick: function () { userPaused = true; stop(); show(i + 1); } });
+  host.innerHTML = "";
+  host.appendChild(ph); host.appendChild(g); host.appendChild(h("div", { class: "stb" }, [play, prev, next, ctr])); host.appendChild(cap);
+  function show(k) {
+    i = ((k % n) + n) % n;
+    var f = A.frames[i], marks = {}, over = {};
+    Object.keys(A.labels).forEach(function (key) { over[key] = A.labels[key]; });
+    f.b.forEach(function (c) { if (c[2]) { over[c[0] + "," + c[1]] = c[2]; } });
+    if (f.n) { marks[f.n[0] + "," + f.n[1]] = "nope"; }
+    if (f.f) { marks[f.f[0] + "," + f.f[1]] = "land"; }
+    drawGrid(g, animRows(A, f), { label: A.title, marks: marks, over: over, noGoal: true, cls: "ang" });
+    var cols = A.rows[0].length, avail = (host.clientWidth || 300) - 10;
+    g.style.setProperty("--cs", Math.max(12, Math.min(30, Math.floor(avail / cols))) + "px");
+    ph.textContent = f.p;
+    cap.textContent = f.c; cap.classList.toggle("bad", !!f.n);
+    ctr.textContent = (i + 1) + " / " + n;
+  }
+  function tick() {
+    var d = A.frames[i].d || 220;
+    timer = setTimeout(function () { show(i + 1); if (playing) { tick(); } }, d);
+  }
+  function start() { if (playing) { return; } playing = true; play.textContent = "❚❚ Pause"; tick(); }
+  function stop() { playing = false; play.textContent = "▶ Play"; if (timer) { clearTimeout(timer); timer = null; } }
+  views.push(function () { show(i); });
+  show(0);
+  if (!reduce && "IntersectionObserver" in window) {
+    new IntersectionObserver(function (es) {
+      es.forEach(function (e) {
+        visible = e.isIntersecting;
+        if (visible && !userPaused) { start(); } else if (!visible) { stop(); }
+      });
+    }, { threshold: 0.4 }).observe(host);
+  }
+}
+function animCards() {
+  var hosts = $$(".gal-anim");
+  if (!hosts.length) { return; }
+  if (!window.fetch) { hosts.forEach(function (x) { x.textContent = "This browser cannot load the animation data."; }); return; }
+  fetch("engine/anims_exptime.json?v=20261029f").then(function (r) { return r.json(); }).then(function (d) {
+    var by = {};
+    d.anims.forEach(function (a) { by[a.id] = a; });
+    hosts.forEach(function (x) { var A = by[x.getAttribute("data-a")]; if (A) { animPlayer(x, A); } else { x.textContent = "Animation missing."; } });
+  }).catch(function () { hosts.forEach(function (x) { x.textContent = "Animation data could not be loaded (open the page over http)."; }); });
+}
+
+/* =====================================================================
    boot
    ===================================================================== */
 var d0 = gdepth();
 var v0 = null; try { v0 = localStorage.getItem("exptime-view"); } catch (e) { /* none */ }
 setView(v0 === "tiles" || (v0 === null && d0 === "0") ? "tiles" : "text", false);
 setGlobal(d0, false);
-play1(); play2(); lab(); gallery();
+play1(); play2(); lab(); gallery(); animCards();
 loadTiles();
 })();
