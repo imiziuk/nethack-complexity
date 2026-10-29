@@ -90,3 +90,5 @@
 - Prior-work search (proofs/prior-work.md): no NetHack complexity result found; NP side = standard time-limit pattern.
 - Tile video (media/), layout picture (media/layouts/), interactive page site/proof-explorer.html published as private
   artifact https://claude.ai/artifact/PKfbmsL3ZzF1qm6aAwyMsZ (depth switch, Text/Tiles map toggle, playable puzzle).
+- Overnight fastbfs (build/fastbfs5/results.log, one at a time, cap 90 M states): [3][-3][1,2,3] exhaustive, g unreachable
+  (48,002,512 states, 987 s). The other 4 capped at 90 M without reaching g. UNSAT exhaustive now 19/23.
