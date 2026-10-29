@@ -29,3 +29,25 @@
   src/nhlua.c:1463-1489]; X2 strict DET near-empty; X3 god-anger prayer block backfires. All repaired; claims.md
   updated. Prayer cap LARGEST_INT 32767 [orch-verified include/global.h:135].
 - Milestone 1 closed: 8 agents used (3 Sonnet + 5 Opus). Next phase proposed in milestone-1.md §8.
+
+## 2026-10-28 — Session 1, phase 2 (Ivan: "both, report each")
+- Spec fixed: proofs/phase2-spec.md (L_ON faithful hunger, L_OFF hunger off via nh.debug_flags).
+- Citations (proofs/citations.md): Push-1F authors = Ani, Chung, Demaine, Diomidov, Hendrickson, Lynch (FUN 2022,
+  LIPIcs 226). Push-1 (no fixed blocks) PSPACE-complete per two Aug-2025 arXiv preprints (2508.17602, 2508.19759).
+  No prior NetHack complexity paper found.
+- NP side (proofs/hu-on-upper.md): FATAL G1 [orch-verified src/eat.c:3416-3437]: starvation is checked only when the
+  faint roll fails; while fainted it is never checked. Under R2 the hero faints forever and never starves; with
+  prayer (every <=32567 turns) alive plays are infinite. => under R2 faithful hunger is NOT a clock. Under R3 the
+  adversary picks "no faint" and starvation happens. Repair S [assump]: below the starvation threshold = loss.
+  G4 [orch-verified src/sp_lev.c:3732]: des.object quantity loops for non-mergeable objects (exponential objects
+  from one line) -> quantity 1. G2 rotten-food sleep loop, G3 sleeping-gas+#sit: banned. L_ON* (R2 + S + whitelist)
+  ∈ NP: proof draft, margin thin (0.907).
+- PSPACE side (proofs/hu-off.md + 5 witness scripts, not run): L_OFF^W PSPACE-complete draft. Found run-order bug
+  [orch-verified allmain.c:807-815] and missing `noflip` [orch-verified sp_lev.c:3804]. Unrestricted L_OFF upper bound
+  likely false (thrones: unbounded wishes under R2).
+- NP-hardness (proofs/hu-on-lower.md + 3 witness scripts, not run): Planar Monotone Rectilinear 3-SAT, cookies on
+  every cell, holes for the crossover. FAILED sub-attempt: pits as barriers (hero climbs out). Conjecture: no
+  walls+boulders-only crossover exists.
+- Review 2 (proofs/review-2.md): FATAL-as-written: starting pet survives reset [orch-verified dog.c:225, nhlua.c:1473,
+  cmd.c:1047]; repaired with pettype:none (spec Revision 2). All three theorems survive with the repair.
+- Phase 2 result: L_ON* NP-complete, L_OFF^W PSPACE-complete (both STRONG, not machine-checked). 13 agents total.
