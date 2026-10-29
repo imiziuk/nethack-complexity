@@ -221,3 +221,41 @@ and the invariant that no boulder ever reaches a teleport trap (M6 = global relo
 
 Synthesis note: exptime-mech-monsters-traps.md was not yet written when this file was finalized; its monster-walker
 candidate (M8) should be compared against C, but C already satisfies N1-N4 with a far smaller audit.
+
+## 9. Witness results (2026-10-29)
+Real game: NetHack 5.0.0 headless tty (WSL build of tools/run_witnesses.sh), `#wizloadlua`, one fresh game (system
+seed) per run, 40 re-entries of T per run. Scripts `tools/witness/exp_coin*.lua` (generated variants of one template),
+driver `tools/witness_driver_exp.py`, batch `tools/run_witnesses_exp.sh`; raw lines in `build/witness-exp-results.txt`.
+Board: Z = {A=(7,1), T=(8,1), B=(9,1)} (one row), entry E=(8,2) below T, two open rooms with ~60 free cells outside Z
+(incl. (6,1), (10,1), E right next to Z), Rev. 3 start (1-cell `teleport_region`, branch stair via `des.levregion`
+into a sealed pocket). Every run asserted start cell = S0, trap `tseen`, boots worn + cursed (lua `obj:totable()`).
+
+| Witness | Runs × entries | Landings | Verdict |
+|---|---|---|---|
+| W9 coin (cursed fumble boots + cursed loadstone, seen trap) | 30 × 40 = 1200 | A 608, B 592, T 0, outside Z 0, no-move 0; both in every run | **PASS** |
+| W10 veto check (no boots) | 15 × 40 = 600 | A 225, B 227, **T 148** (= 148 "You escape a teleportation trap", ≈ 1/5 as `!rn2(5)`), in every run | **PASS** (escape exists ⇒ boots needed) |
+| W11b positive control Z = {C=(6,1),A,T,B} | 10 × 40 = 400 | A 143, B 136, C 121, T 0, outside 0 | **PASS** (landing set = free non-trap cells of Z, exactly) |
+| W11c negative control (no `exclude`) | 10 × 1 | 8 of 10 outside {A,B}: (4,3) (8,3) (2,1) (6,3)×3 (5,2) (3,1); A 1, C 1 | **PASS** (the zone is what restricts) |
+
+Other effects (tty text scan; message counts are inflated by redraws, presence is reliable): with boots only
+"You trip over your own feet" / "slip and nearly fall" / "flounder" / "stumble" + "You make a lot of noise!"
+(timeout.c slip_or_trip + wake_nearby; no monsters) — they recur over ~100 turns per run, so the HFumbling timeout
+re-arms as read (timeout.c:924). Never: "trip over <object>", dropping, hurtle/ice slide, Burdened/Stressed, HP loss
+(16/16 at end of every run), "disoriented", "wrenching", "shudder", "mysterious force". Time only, as §3.3 says.
+
+Surprises / harness notes:
+1. **Wizard mode diverts trap teleports to a getpos prompt** (scrolltele: `|| wizard`). The driver answers `.` = the
+   hero's own cell T; T is a trap ⇒ `teleok` false ⇒ "Sorry..." ⇒ `safe_teleds`, i.e. exactly the non-wizard path
+   (observed "Sorry..." before every landing). A non-wizard game cannot load the level, so this is the closest
+   faithful run. A queued key (not a tty key) at that prompt would abort the teleport (getpos.c:816-825).
+2. Fumbling's `nomul(-2)` and its `unmul` clear the canned key queue (hack.c:4172 `cmdq_clear`), so scripted keys
+   pushed while helpless are dropped; the scripts re-push until the hero moves (no double moves possible).
+3. API form confirmed (sp_lev.c:5410-5459, mkmaze.c:611-634, teleport.c:386-418): `des.teleport_region({ region =
+   {s}, region_islev = true, exclude = {Z}, exclude_islev = true, dir = "both" })` — one call is both the start
+   region and the coin zone (start is placed in region \ exclude). Without `exclude_islev = true` the exclude
+   coordinates are **map-relative** (levregion_add → get_location); `nlx > 0` is the "zone present" test, so Z must
+   not start at absolute x = 0. `des.exclusion` is a different mechanism (arrival placement / monster generation,
+   mkmaze.c:423, teleport.c:181), not usable for the coin.
+4. Encumbrance: this Valkyrie with loadstone 500 + boots 20 was never Burdened; the wc ≥ 520 margin claim (§3.3)
+   still needs the general check for the instance's fixed attributes.
+Not run: §7 W10 boulder-onto-T (M6 hazard) and W11 fumble-push (W1-W4 with boots) from the original §7 list.
