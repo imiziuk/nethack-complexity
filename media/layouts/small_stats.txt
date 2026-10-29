@@ -1,0 +1,1 @@
+{"width": 187, "height": 231, "tiles_w": 17, "tiles_h": 21, "floor_cells": 2790, "boulders": 18, "holes": 5, "crossovers": 5, "closing_sites": 4, "doors": 4, "cookies": 2783, "solution_moves": 1547, "min_hunger": 861, "max_visits": 2, "max_moves_without_cookie": 1}

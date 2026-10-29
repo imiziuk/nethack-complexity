@@ -1,5 +1,17 @@
 # NetHack complexity: research log (newest first)
 
+## 2026-10-29 — L_ON NP-hardness: global construction (sub-agent)
+- hu-on-lower §4 sketch replaced: 11×11 tile grid (ports at side midpoints, stone rings), explicit row/column
+  formulas (token sweep), routing of P (main line, branches, spikes) and K (clause gadgets, dive/step/switch arcs),
+  Lemma 4.1 isolation (proved), Lemma 4.2 planarity + #crossovers ≤ 6m²+24m+1 [conj, case analysis], size bounds
+  w ≤ 132m+22n+44, h ≤ 77m+77. Claim A reworded (gates open from upstream; first entry may come via S or N), §5
+  restated with explicit play and food bound (hunger ≥ 857).
+- Found: Lemma 3.2(d) "Z_σ is a dead end" holds only while σ's door is closed; harmless for the proof (K↔P link
+  between visited regions), but it kills the tempting BFS pruning "W on Q dominates W further in" (unsound).
+- tools/gen_on_instance.py (JSON → Lua + move string; deletes unused variables; S-bend wires so stray boulders stick)
+  and tools/check_small.py (exact BFS, no pruning). Result: 370/370 SAT levels won by replay, 20/20 SAT BFS find g, UNSAT exhaustive 16/23 levels unreachable (max 734,784 states), 7 timed out at 25 min, 0 mismatches. Not run in the game
+  (levels ≥ 132×132 need lifted COLNO/ROWNO).
+
 ## 2026-10-28 — Session 1 (milestone 1)
 - Version check: `NetHack-5.0.0_Released` tag EXISTS on github.com/NetHack/NetHack -> commit
   `16ff59115315917b93185d026aeefea06db9b0f4` (2026-05-02, "check_mongen_order shouldn't be compiled into release builds").
@@ -65,3 +77,16 @@
   mechanics assertion. [auto-experimentally verified]
 - Caveat: the run happened at a real full moon (game printed "You are lucky! Full moon tonight", +1 Luck). The spec
   wants Luck 0, but these witnesses test movement/push rules only, which do not read Luck.
+
+## 2026-10-29 (day/night) — final round
+- Lean 4 + Mathlib installed in WSL (~10.4 GB: ~/.elan 3.1 G + ~/nh-lean 7.3 G; estimate was 6-8 GB). `simulation` lemma
+  compiled, no sorry, standard axioms only (claims L1).
+- Variants (proofs/variants.md): no rule S -> PSPACE-complete; R3 -> NP-hard, in PSPACE. F12 corrected.
+- Review 3 (PSPACE side): Lean bridge HOLDS; enclosure Lemma E (one figure check open); NEW HOLE: DL1 branch stair can
+  take the 1-cell start, hero stays at a stale position, prayer teleport can reach g -> Rev. 3 stair pocket. Witnesses
+  passed only because the event has ~1/#floor probability per seed.
+- Review 4 (NP side): Lemmas 4.1/4.2, §5 HOLD; generator lacked the pocket (fixed). Rust exact BFS tools/fastbfs:
+  UNSAT 18/23 exhaustive, 5 largest re-running overnight (build/fastbfs5/results.log).
+- Prior-work search (proofs/prior-work.md): no NetHack complexity result found; NP side = standard time-limit pattern.
+- Tile video (media/), layout picture (media/layouts/), interactive page site/proof-explorer.html published as private
+  artifact https://claude.ai/artifact/PKfbmsL3ZzF1qm6aAwyMsZ (depth switch, Text/Tiles map toggle, playable puzzle).
