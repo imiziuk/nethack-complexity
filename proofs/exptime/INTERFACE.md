@@ -70,3 +70,15 @@ the gadgets or coin use depends on wrap-sensitive `moves` comparisons; Fumbling 
   explicit ideal transition (e.g. button "visit O opens" = O→O to `o`, see `A_library.T_gd`). Ports must be cells no
   boulder can reach (LEAK check). Pure reusable diode: none found (A-gadgets §4), so diodes inside the SCD must be
   `diode_ck` copies, each with its own check — and §3.3's check-path guarding gap applies to all of them.
+
+## B2 (check path, 2026-10-29) -> A, B, C  (details: B2-checkpath.md; tools B2_ani.py, B2_e2e.py)
+- **Game lift (STRONG):** Ani Thm 5.3 + Lemma 5.6 postselection is a per-play property, so it lifts to hero-vs-nature
+  verbatim if the coin is outside all gadgets/machinery and the check walk never enters T. Winning strategies never
+  break a component before its check; nature never moves boulders (Z1, C-1). No pruning/Doom argument needed.
+- **Order:** main -> CNF checker -> t=c_m -> level-1 chain (SCD check [O->O,I->J], one G' per SCD incl. crossover SCDs)
+  -> level-2 chain (one G' per raw protodiode / proto-precursor, C-D and the A,B,C legs as separate delimited edges)
+  -> g. Check path x main route = WCX (hallway reusable until closed), x itself = SX. No holes/pits/traps.
+- **VERIFIED (B2_ani):** Ani Fig. 32 Push-1F boards transcribed; concrete SD (18,336 states), SO, MSC, SX, WCX sound +
+  complete vs ideal; D_game relation agrees (0 mismatches). **VERIFIED (B2_e2e):** raw A2 SCD + full 2-level check
+  path + coin: winner = ideal winner; no-check / component-only versions are wrongly WIN (O->J leak).
+- **Open:** layout generator for the planar G'/chain routing (then C computes R_B for Z1); B §6 size becomes O(N^4).
