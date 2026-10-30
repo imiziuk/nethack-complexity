@@ -82,3 +82,11 @@ the gadgets or coin use depends on wrap-sensitive `moves` comparisons; Fumbling 
   complete vs ideal; D_game relation agrees (0 mismatches). **VERIFIED (B2_e2e):** raw A2 SCD + full 2-level check
   path + coin: winner = ideal winner; no-check / component-only versions are wrongly WIN (O->J leak).
 - **Open:** layout generator for the planar G'/chain routing (then C computes R_B for Z1); B §6 size becomes O(N^4).
+
+## X (concrete crossover map, 2026-10-29) → B2  (details: X-crossover.md)
+- `build/xover/crossover.txt` + `.json`: ABD+20 Fig. 12 directed crossover as ONE planar boulder map, 358×332, 166
+  boulders (20 closed SCD tiles + 46 diode tiles). External ports = the only frame openings: A1 left, A2 top, B1 right,
+  B2 bottom (`ext` in the json); traversals A1→B1, A2→B2 only. Map-derived network = A2's verified one (VERIFIED).
+- **Check ports for B2's check path** (`tiles.<gid>.checks`, global cells; all dead ends inside the tile, NOT routed
+  out): per SCD `tog.D tog.G prec.D prec.G` (pockets), `tog.ABC prec.ABC` (joined A/B/C hallways: A2 §5 wants them
+  split), `d1.CD d2.CD`; per diode `d.CD`. 20·8 + 46 = 206 check ports; each needs a guarded entry after t.
