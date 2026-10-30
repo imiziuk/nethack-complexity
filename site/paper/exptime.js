@@ -1117,7 +1117,7 @@ function animCards() {
   var hosts = $$(".gal-anim");
   if (!hosts.length) { return; }
   if (!window.fetch) { hosts.forEach(function (x) { x.textContent = "This browser cannot load the animation data."; }); return; }
-  fetch("engine/anims_exptime.json?v=20261029f").then(function (r) { return r.json(); }).then(function (d) {
+  fetch("engine/anims_exptime.json?v=20261030a").then(function (r) { return r.json(); }).then(function (d) {
     var by = {};
     d.anims.forEach(function (a) { by[a.id] = a; });
     hosts.forEach(function (x) { var A = by[x.getAttribute("data-a")]; if (A) { animPlayer(x, A); } else { x.textContent = "Animation missing."; } });

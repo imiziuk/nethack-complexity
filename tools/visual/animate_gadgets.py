@@ -187,7 +187,7 @@ class Gadget:
                 return f'diagonal step {dn} onto the hole: falling = loss, refused'
             c1, c2 = what((tx, y)), what((x, ty))
             if c1 != 'free' and c2 != 'free':
-                return f'diagonal {dn}: corner rule, blocked ({c1} + {c2})'
+                return f'diagonal {dn}: blocked, Sokoban level, no squeeze between {c1} + {c2}'
             return None
         if B >> t & 1:
             b = bd.idx.get((tx + d[0], ty + d[1]))

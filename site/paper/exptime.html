@@ -407,7 +407,7 @@ pre.mini { margin: 0; padding: .2rem .35rem; font-size: .74rem; line-height: 1.1
 </article>
 </div>
 <h3 class="gal-h" id="anims">Animated walk-throughs</h3>
-<p class="d0only">Every gadget in motion. The hero's moves are not drawn by hand: a computer searched for the shortest walk under NetHack's push rules. Red squares are moves the rules refuse.</p>
+<p class="d0only">Every gadget in motion. The hero's moves are not drawn by hand: a computer searched for the shortest walk under NetHack's push rules. Red squares are moves the rules refuse. A diagonal step between two blocked corners (wall or boulder) is refused because our levels carry NetHack's own Sokoban flag; on an ordinary level a player could slip through. <a href="index.html#pb-diag">Why, with pictures</a>.</p>
 <p data-dm="1">Frames from <code>tools/visual/animate_gadgets.py</code> (GIFs in <code>media/exptime/anim/</code>): BFS-shortest walks over (hero, boulders, holes) with the <code>A_core.py</code> model, every step re-checked against <code>A_core.Board.moves</code>; each script asserts the final state and the traversal against the gadget's system (<code>A_core.explore</code>, <code>A2_scd</code> networks). Refusals: the closest spot the hero can reach, then each blocked move toward the goal.</p>
 <div class="gal">
 <article class="gcard">
@@ -604,6 +604,6 @@ pre.mini { margin: 0; padding: .2rem .35rem; font-size: .74rem; line-height: 1.1
 </section>
 </main>
 </div>
-<script src="exptime.js?v=20261029f"></script>
+<script src="exptime.js?v=20261030a"></script>
 </body>
 </html>
