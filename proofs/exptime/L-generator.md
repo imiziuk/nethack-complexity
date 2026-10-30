@@ -162,6 +162,9 @@ ALL AS EXPECTED (same c1 61,112 moves, same c2 counts). L_gen uses leg g-sides i
    plus a classified list of crossings; turning it into cells needs a redraw that gives every crossing a box
    (standard orthogonal/box drawing of a planar graph in polynomial area): **STRONG**, not VERIFIED. The same
    redraw supplies room the 1-cell geometry lacks (e.g. between a location and its Wb).
+   **Update 2026-10-30 (M-machinery.md):** WCX / SO / SD / SX / MSC are now drawn as concrete boards (WCX 478 × 608,
+   276 boulders) with exact port behaviour = ideal (VERIFIED), plus one SO/SD + hook unit (HK); placement on the
+   curve stays STRONG.
 2. **Hook curves** (SD exit → a_i, b_i → SO entrance, and the SO/SD placement) are checked for reachability only;
    their crossings (SX in time order) are counted as a bound, not drawn.
 3. **S3 is abstract** at the component level: components are postselected (B2_e2e "scdlevel"), the leak is an

@@ -1633,6 +1633,90 @@ def template_record(res):
 
 # ============================================================ 8. whole instance: assembly, checks, outputs
 MACHINE_BLOCKS = dict(WCX=222, SO=50, SD=11, SX=83)     # Push-1F blocks per machinery gadget (B2 §3.6; SX = SO + 3 SD)
+MDIR = os.path.join(ROOT, 'build', 'machinery')        # concrete machinery boards (M_build.py, M-machinery.md)
+
+
+def machinery_boards():
+    """the concrete WCX / SO / SD / SX boards drawn by M_build.py and checked by M_verify.py, if they are built:
+    {kind: dict(W, H, boulders, floor)}; None if build/machinery is missing (then only the B2 §3.6 estimate is used)."""
+    out = {}
+    for k in ('WCX', 'SO', 'SD', 'SX'):
+        f = os.path.join(MDIR, k + '.json')
+        if not os.path.exists(f):
+            return None
+        j = json.load(open(f))
+        out[k] = dict(W=j['W'], H=j['H'], boulders=j['boulders'], floor=j['floor'])
+    return out
+
+
+def m_block(kind, s=0):
+    """optional block type: one concrete machinery board (M_build) under grid symmetry s, its external ports on
+    the block midlines with straight stubs to the border. WCX / SX: L, R = the crossed hallway (arms L, R before the
+    symmetry), Tp, Bt = the check line (arms T, B). The block pitch is the board's own (WCX does not fit P = 469),
+    so these blocks are not placed in the P-pitch macro grid; check_mblock asserts the same locality contract as
+    check_block. Returns the Block (b.kind = ('M', kind, s))."""
+    rows = open(os.path.join(MDIR, kind + '.txt')).read().split()
+    j = json.load(open(os.path.join(MDIR, kind + '.json')))
+    W0, H0 = j['W'], j['H']
+    W, H = XB.sym_size(s, W0, H0)
+    f = lambda x, y: XB.sym(s, x, y, W0, H0)
+    ext = {e: f(*c) for e, c in j['ext'].items()}
+    side = {}
+    for e, (x, y) in ext.items():
+        side[e] = 'L' if x == 0 else 'R' if x == W - 1 else 'T' if y == 0 else 'B'
+    xs = {x for e, (x, y) in ext.items() if side[e] in 'TB'}
+    ys = {y for e, (x, y) in ext.items() if side[e] in 'LR'}
+    assert len(xs) <= 1 and len(ys) <= 1, ('ports not on common midlines', kind, ext)
+    cx = xs.pop() if xs else W // 2
+    cy = ys.pop() if ys else H // 2
+    half = max(cx, W - 1 - cx, cy, H - 1 - cy) + 6
+    Pm = 2 * half + 1
+    ox, oy = half - cx, half - cy
+    b = Block(('M', kind, s), Pm, Pm)
+    b.mid = half
+    for y, r in enumerate(rows):
+        for x, ch in enumerate(r):
+            if ch in '.0':
+                gx, gy = f(x, y)
+                b.put((gx + ox, gy + oy), ch, ('mboard', kind))
+    for e, (x, y) in ext.items():
+        sd = side[e]
+        d = {'L': (-1, 0), 'R': (1, 0), 'T': (0, -1), 'B': (0, 1)}[sd]
+        c = (x + ox + d[0], y + oy + d[1])
+        end = (c[0] if sd in 'TB' else (0 if sd == 'L' else Pm - 1), c[1] if sd in 'LR' else (0 if sd == 'T' else Pm - 1))
+        b.line(c, end, ('mstub', e))
+        b.arms[sd] = e
+    return b
+
+
+def check_mblock(b):
+    """check_block's contract for a block of its own pitch: floor on the border ring only at the arm midpoints, arms
+    straight for 3 cells with walls beside; a stub 8-touches the board only at its own port cell (4-adjacent)."""
+    W, H, m = b.W, b.H, b.mid
+    cell = {'T': (m, 0), 'B': (m, H - 1), 'L': (0, m), 'R': (W - 1, m)}
+    mids = {cell[a] for a in b.arms}
+    for (x, y) in b.floor:
+        if x in (0, W - 1) or y in (0, H - 1):
+            assert (x, y) in mids, ('floor on border ring off an arm', b.kind, (x, y))
+    for (mx, my) in mids:
+        d = (0, 1) if my == 0 else (0, -1) if my == H - 1 else (1, 0) if mx == 0 else (-1, 0)
+        for k in range(3):
+            c = (mx + d[0] * k, my + d[1] * k)
+            assert c in b.floor, ('arm not straight', b.kind, c)
+            assert all(s not in b.floor for s in ((c[0] + d[1], c[1] + d[0]), (c[0] - d[1], c[1] - d[0]))),                 ('arm has a floor neighbour', b.kind, c)
+    for c, o in b.owner.items():
+        if o[0] != 'mstub':
+            continue
+        touch = [(c[0] + dx, c[1] + dy) for dx in (-1, 0, 1) for dy in (-1, 0, 1)
+                 if b.owner.get((c[0] + dx, c[1] + dy), ('',))[0] == 'mboard']
+        assert len(touch) <= 1, ('stub touches the board in several cells', b.kind, c, touch)
+        for t in touch:
+            assert abs(t[0] - c[0]) + abs(t[1] - c[1]) == 1, ('stub touches the board diagonally', b.kind, c, t)
+        for dx in (-1, 0, 1):
+            for dy in (-1, 0, 1):
+                o2 = b.owner.get((c[0] + dx, c[1] + dy))
+                assert o2 is None or o2[0] == 'mboard' or o2 == o, ('two stubs 8-adjacent', b.kind, c)
+    return True
 
 
 def coin_lint(b):
@@ -1763,6 +1847,14 @@ def assemble(inst, name, x_ok=True):
         tot.get('GX', 0)
     res['machinery'] = dict(WCX=wcx, SO=nchecks, SD=nchecks, SX=tot.get('SX', 0) + tot.get('SX.margin', 0))
     res['machinery_blocks_est'] = sum(MACHINE_BLOCKS[k] * v for k, v in res['machinery'].items())
+    mb = machinery_boards()
+    if mb:          # counts backed by the concrete boards (placement / hook curves still not drawn: M-machinery.md)
+        m = res['machinery']
+        res['machinery_boards'] = dict(
+            per_board=mb, boulders=sum(mb[k]['boulders'] * v for k, v in m.items()),
+            floor_cells=sum(mb[k]['floor'] * v for k, v in m.items()),
+            board_cells=sum(mb[k]['W'] * mb[k]['H'] * v for k, v in m.items()),
+            source='build/machinery (M_build.py, checked by M_verify.py)')
     floor = sum(len(Lv.lib[k].floor) for k in Lv.g.values() if k[0] != 'tile') + sum(len(b.floor) for b in Lv.tb.values())
     boulders = 166 * Lv.nX + sum(sum(1 for ch in b.floor.values() if ch == '0') for b in Lv.tb.values())
     res['main_layer'] = dict(macro_cols_rows=(Lv.C + 2, R + 1), cells_wh=((Lv.C + 2) * P, (R + 1) * P + 8),
@@ -2028,6 +2120,15 @@ if __name__ == '__main__' and '--xblock' in sys.argv:
           {k: (v['gprimes'], v['err'], v['secs']) for k, v in rec['levels'].items()}, flush=True)
 
 
+if __name__ == '__main__' and '--mblock' in sys.argv:
+    # the optional machinery block type: every board, all 8 symmetries, locality contract
+    for kind in ('WCX', 'SX', 'SO', 'SD'):
+        for s_ in range(8):
+            b = m_block(kind, s_)
+            check_mblock(b)
+        print(f'{kind}: m_block pitch {b.W}, arms {sorted(b.arms)}, {sum(1 for ch in b.floor.values() if ch == "0")} '
+              f'boulders; check_mblock ok under all 8 symmetries')
+
 if __name__ == '__main__' and '--run' in sys.argv:
     a = sys.argv[sys.argv.index('--run') + 1:]
     K = int(a[0]) if a else 20
@@ -2058,6 +2159,8 @@ if __name__ == '__main__' and '--run' in sys.argv:
                          gp=res['gprimes_routed'], S3=res.get('S3'), locs=res['check_locations'], Z=None if isinstance(res['Z'], str)
                          else (res['Z']['Z1_ok'], res['Z']['Z2_ok'], res['Z']['Z1_rule_ok']),
                          machinery=res['machinery'], blocks=res['machinery_blocks_est'],
+                         mboards=None if 'machinery_boards' not in res else
+                         {k: res['machinery_boards'][k] for k in ('boulders', 'floor_cells', 'board_cells')},
                          main=res['main_layer'], N=sum(len(C) for C in inst['F']) + len(inst['X']) + len(inst['Y'])
                          + len(inst['F'])))
         print(json.dumps(rows[-1], default=str), flush=True)
