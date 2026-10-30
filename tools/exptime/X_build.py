@@ -529,6 +529,7 @@ def diode_tile():
     jd = b.leg('d.D', cp[('d', 'D')], (0, 1), 'cd')
     b.junction('cd', [(x, jc[1]) for x in range(jc[0], jd[0] + 1)], [('d', 'C'), ('d', 'D')])
     W, H = b.size()
+    cp = b.cport                     # re-read after finish() shifted the coordinates (was stale: checks off by one)
     checks = {f'd.{P}': [c] for (n, P), c in cp.items()}
     T = Tile('dio', b.cells, b.ports, b.comps, checks, W, H, b.legs, b.nodes)
     T.owner, T.cport = b.owner, b.cport

@@ -106,3 +106,14 @@ the gadgets or coin use depends on wrap-sensitive `moves` comparisons; Fumbling 
 - For the generator (review 5 repair 2, OPEN): route the 684 locations into the global chain with guards; Z1 (exact)
   + Z2 lint on the generated instance.
 
+## L (layout generator, 2026-10-30) → B, B2, C, X  (details: L-generator.md)
+- `tools/exptime/L_gen.py`: G6 instance → review5_t1 arena → netlist → bus layout of concrete blocks (P = 469: v2 SCD
+  tiles (sym 7), v2 diode tiles, coin [A # T # B], combs, v2 crossover under flips) → check path routed on the cells
+  (doubled grid; delimiters on the v2 Wt/Wb slots; CHX / SX / GX classified) → S1/S2/S3 attractors.
+- VERIFIED on generated instances: S1 = S2 = G6 (40 + 300); block contract + arm matching + trace; 8 crossover
+  check-path templates (all 684 locations, 604 legs) + tile templates, independent replay; coin Z1/Z2 lint; S3.
+- For X: crossover.json diode `checks` were shifted by one cell (stale `cp` in `diode_tile`). Fixed and rebuilt
+  (map and routes identical, X_verify ALL AS EXPECTED). Use legs' `gside` for leg locations either way.
+- Open (STRONG only): the machinery boards on the curve are not drawn, the hook curves are not drawn, and no
+  boulder-level attractor was run.
+

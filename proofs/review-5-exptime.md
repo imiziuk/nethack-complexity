@@ -194,7 +194,7 @@ Repair agent; game not run, nothing committed. Scripts in `tools/exptime/`, outp
 | # | Repair | Status | Evidence |
 |---|---|---|---|
 | 1 | Split check legs in the SCD and diode tiles; rebuild + re-verify the crossover | **DONE** | see below |
-| 2 | Layout generator (B bus layout + Thm 5.3 G′ wrappers + Lemma 5.6 chain), Z1/Z2 on it | **OPEN** | not started; the 684 check locations of the v2 map are not yet routed into a check path |
+| 2 | Layout generator (B bus layout + Thm 5.3 G′ wrappers + Lemma 5.6 chain), Z1/Z2 on it | **DONE (main layer + check-path curve); machinery cells STRONG** | `L_gen.py`, `exptime/L-generator.md`. On 20 + 20 generated instances (77-1,926 crossovers): concrete main layer, static locality/planarity checks, network re-read from the blocks = G6 (S2; flipped crossovers disagree 14/20). The check path is routed through every check location of every block type (8 crossover templates: 604 legs, both delimiters each; validator replay ok). Z1/Z2 lint pass on the generated coin. S3 (SCD-level postselection, abstract leak) = G6 on 19 instances. Not done: the WCX/SO/SD/SX boards drawn in cells (no concrete WCX board exists), hook curves, boulder-level attractor. Side fix: crossover.json diode `checks` were off by one (X_build), now rebuilt; X_verify ALL AS EXPECTED |
 | 3 | Spec Rev. 4 adopted (normal mode, Str+Con line) | **DONE** | `phase2-spec.md` Rev. 4 items 10-13; common-part template line now "start Str+Con ≥ 12 for every setup outcome"; commands line + item 11 require `flags.debug` = false (wizard prompt at `scrolltele`, teleport.c:872-873); witness caveat in `exptime-feasibility.md` §9 note 1 |
 | 4 | Z1 restated with exact boulder reach | **DONE** | `C-audit.md` §1 (Z1 exact: R_B^ex = ⋃ windows' explore reach, G1 LEAK-free + window locality; sufficient rule: no window within Chebyshev 3 of Z ∪ {E}; how to check on a generated map); §6 item 1 updated |
 | 5 | B text: Z4 waits, O(N⁴), poly time, cap removed | **DONE** | `B-reduction.md`: title + scope box + result table (T2, S, ⇒) say "10^9 cap removed, counters wrap"; H_σ (§4.3) and T2 (§5.4, both directions) have the Z4 waits / dead-phase bounce; §6.2-6.3 size O(N⁴) citing B2 §3.6; computability = polynomial time, log space not claimed |
@@ -233,6 +233,11 @@ Repair agent; game not run, nothing committed. Scripts in `tools/exptime/`, outp
 **Repair 4 evidence** (`review5_rb2.py`, part 2 added): exact reach per window, broken states included, no LEAK:
 protodiode 4 states / 4 cells, proto-precursor 28 / 8, WMC 6 / 6, NR 147 / 16, WO 123 / 17; no port cell reached
 (the R_B closure reaches WO's T (4,0); exact exploration does not).
+
+**Repair 2 (2026-10-30, L-generator.md).** The guard argument and Z1/Z2 are now checked on generated instances,
+not only on B2_e2e's one-SCD example. That covers the main layer concretely, the check path as a certified planar
+curve, and the abstract S3 attractor. The remaining gap is local: replacing each classified crossing on that curve
+by a drawn WCX/SO/SD/SX board (STRONG, a standard planar redraw).
 
 **Theorem status after the repairs.** The joined-port soundness bug (§3a) is fixed at the tile level and on the
 assembled crossover map. EXPTIME-hardness at the NetHack level stays conditional on repair 2 (no generated instance
