@@ -43,7 +43,8 @@ Updated 2026-10-29 (reviews 3-4, Lean, variants, prior work); first written 2026
 | L_ON, R3 (∀ outcomes) | NP-hard and ∈ PSPACE (poly horizon, AP); exact class open | both | STRONG (variants.md (c), survived review 3) | proofs/variants.md |
 | R3 full info, poly state | ∈ EXPTIME | upper | STRONG | APSPACE = EXPTIME |
 | W_∞ | undecidable | lower | CONJECTURE (weak) | — |
-| any | EXPTIME-hard | lower | unknown | — |
+| **L_OFF^{W+C}** (hunger off, teleport-coin traps + cursed fumble boots, R3, non-wizard mode) | ∈ EXPTIME | upper | STRONG | proofs/exptime/B-reduction.md Thm M (APSPACE = EXPTIME) |
+| **L_OFF^{W+C}** | EXPTIME-hard (from Stockmeyer–Chandra G6) | lower | CONJECTURE, strong partial evidence | coin real-game witnessed (W9–W11, 1,200 landings only A/B); SCD verified in model + real game (0 mismatches); check path 5.94 M-position end-to-end; crossover v2 map (453×432) passes X_verify + review5_abc/cd; review 5: T1 holds (700 random G6, 0 mismatches), joined-check-port bug found and repaired (2026-10-30, not re-reviewed). Open: full layout generator + check on a real instance (repair 2), SC79 original text (repair 6, citation PARTIAL), C-vs-model neighbourhood check, Lean, review 6 |
 
 Nothing is VERIFIED at the theorem level: proofs are LLM-written drafts that survived adversarial reviews (1-4).
 Formal: only the movement simulation lemma (L1). Witnesses W1-W8 pass. Prior work: none found for NetHack (proofs/prior-work.md).

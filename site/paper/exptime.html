@@ -318,7 +318,7 @@ pre.mini { margin: 0; padding: .2rem .35rem; font-size: .74rem; line-height: 1.1
 <p><b>The checker is a dead end.</b> From P you either go to the checker or to nature. In the checker every clause is a fan of literal doors; with F false some clause has all doors closed and you are stuck forever (a loss). So trying the checker too early never helps.</p>
 </div>
 <p data-dm="2"><b>Rules for the coin tile (from the adversary audit).</b> <b>Z1</b>: no boulder can ever reach the coin zone, its entry E, or their neighbours (a boulder pushed onto a teleport trap is relocated anywhere on the level). <b>Z2</b>: the tile is [A wall T wall B], T's only free neighbour is E, A and B leave by their own corridors; then a &ldquo;dead&rdquo; coin is a harmless bounce. <b>Z3</b>: no intended walk over an unfilled pit (pit damage is permanent under R3, which never lets HP regenerate). <b>Z4</b>: never step on T while the turn counter is &le; 0. Z4 exists because of a finding of the audit: after the 64-bit turn counter wraps, <code>noteleport_level</code> is true (it compares <code>stasis_until = 0 &ge; moves</code>), so for about 2<sup>63</sup> turns the trap does nothing; the hero simply waits that phase out. <span class="chip ver">VERIFIED</span> source lines, repair <span class="chip strong">STRONG</span>.</p>
-<p data-dm="2"><b>Size.</b> O(N<sup>2</sup>) cells, O(N<sup>2</sup>) crossovers, one coin, log-space computable (N = formula size + variables). Crossovers sit on write paths that are used exponentially often, so <b>no single-use crossover is allowed anywhere</b>.</p>
+<p data-dm="2"><b>Size.</b> O(N<sup>4</sup>) cells (with the check path and Z4 waits), O(N<sup>2</sup>) crossovers, one coin, polynomial-time computable (N = formula size + variables). Crossovers sit on write paths that are used exponentially often, so <b>no single-use crossover is allowed anywhere</b>.</p>
 </section>
 
 <!-- ============================ 3 status ============================ -->
@@ -338,10 +338,10 @@ pre.mini { margin: 0; padding: .2rem .35rem; font-size: .74rem; line-height: 1.1
 <tr><td>Machine checker for hero-vs-dice boulder games</td><td><span class="chip ver">VERIFIED</span></td><td>Python + Rust solvers agree with each other and with an independent naive solver on 5,100 random levels.</td></tr>
 <tr><td>Checkable diode <code>diode_ck</code></td><td><span class="chip ver">VERIFIED</span></td><td>A one-way corridor that works if a final check confirms it never jammed. Exhaustive check, 4 states (2 clean).</td></tr>
 <tr><td>Pure reusable diode / self-closing door</td><td><span class="chip fail">NEGATIVE</span></td><td>&asymp;1.4 million random boards (4&times;4 to 6&times;5, 1&ndash;4 boulders) + annealing: none. Explanation: the overshoot lemma. Impossibility itself is only a conjecture.</td></tr>
-<tr><td>Checkable self-closing door</td><td><span class="chip open">OPEN</span></td><td>Candidate: Ani et al. Fig. 37; transcription and exhaustive check in progress (A2_scd.py).</td></tr>
-<tr><td>Reusable crossover</td><td><span class="chip open">OPEN</span></td><td>Planar version needs a working self-closing door first.</td></tr>
-<tr><td>Guards for the global check path in a game</td><td><span class="chip open">OPEN</span></td><td>The check path touches main corridors; a hero could use it as a shortcut unless guarded.</td></tr>
-<tr><td><b>Overall: L<sub>OFF</sub><sup>W+C</sup> under R3 is EXPTIME-complete</b></td><td><span class="chip conj">CONJECTURE</span></td><td><b>Until a game-safe reusable self-closing door (or diode + crossover) exists.</b></td></tr>
+<tr><td>Checkable self-closing door</td><td><span class="chip ver">VERIFIED</span></td><td>Ani et al. Fig. 37, 6 boulders: exhaustive in our model (10,927 states) and against the real compiled engine (0 mismatches over 35,824 exhaustive + 26,201 sampled + 13,300 walks).</td></tr>
+<tr><td>Reusable crossover</td><td><span class="chip strong">STRONG</span></td><td>Assembled as one planar boulder map (453&times;432, 166 boulders, network = Fig. 12 of Ani et al. 2020). Review 5 found joined check ports in v1; repaired in v2 (every check has its own leg), all checks pass. Repair not yet re-reviewed.</td></tr>
+<tr><td>Guards for the global check path in a game</td><td><span class="chip strong">STRONG</span></td><td>Guarded check path built; end-to-end check over 5.94 million positions finds no shortcut.</td></tr>
+<tr><td><b>Overall: L<sub>OFF</sub><sup>W+C</sup> under R3 is EXPTIME-complete</b></td><td><span class="chip conj">CONJECTURE</span></td><td><b>All gadgets now exist. Still open: a generator that builds the full level for any G6 instance and checks it, the original Stockmeyer&ndash;Chandra text, and one more independent review.</b></td></tr>
 </table>
 </div>
 <p data-dm="2">Contrast with the paper's results (PSPACE-complete without hunger, NP-complete with hunger): those survived several adversarial review rounds and have witnesses in the real game. Nothing on this page has been reviewed yet.</p>
@@ -398,11 +398,12 @@ pre.mini { margin: 0; padding: .2rem .35rem; font-size: .74rem; line-height: 1.1
 <article class="gcard">
 <h3>Self-closing door <span class="chip ver">CHECKABLE, VERIFIED</span></h3>
 <p>A door you open by visiting a button, which lets you through once and then shuts behind you. Built from the published design (Ani et al. Fig. 37): a precursor, a 1-toggle and two one-way corridors, 6 boulders. Machine-checked in our model (10,927 states): used as intended it behaves exactly like an ideal self-closing door; misuse jams it shut for good, which only hurts the hero. See the three animations below (opening it, passing through, refused while closed).</p>
-<p><b>Still open:</b> the final check path and its guards for a game against the dice, and confirmation against the real game engine (running).</p>
+<p>Confirmed against the real compiled game engine: 0 mismatches. The guarded check path is built and checked.</p>
 </article>
-<article class="gcard ph">
-<h3>Reusable crossover <span class="chip open">ON PAPER</span></h3>
-<p>Two corridors that cross, each usable forever. Built from about 20 self-closing doors (Ani, Demaine, Diomidov, Hendrickson, Lynch 2020, Fig. 12); the wiring is machine-checked as an abstract network. Not yet assembled as one boulder map; flatness is read off the paper's figures.</p>
+<article class="gcard">
+<h3>Reusable crossover <span class="chip strong">BUILT</span></h3>
+<p>Two corridors that cross, each usable forever. Built from 20 self-closing doors (Ani, Demaine, Diomidov, Hendrickson, Lynch 2020, Fig. 12), now assembled as one flat boulder map: 453&times;432 cells, 166 boulders. A machine check confirms the wiring matches Fig. 12 and every gadget check passes.</p>
+<img src="img/crossover_v2.png?v=20261030" alt="The full crossover boulder map" style="max-width:100%;image-rendering:pixelated">
 </article>
 </div>
 <h3 class="gal-h" id="anims">Animated walk-throughs</h3>
