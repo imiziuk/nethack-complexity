@@ -140,6 +140,22 @@ if (dx &amp;&amp; dy &amp;&amp; bad_rock(u.ux, y) &amp;&amp; bad_rock(x, u.uy)) 
 <p>Players meet this rule in the real game: it applies throughout the Sokoban branch of the dungeon, next to the better-known rule that boulders there cannot be pushed diagonally. All we do is build our levels with the same flag the game puts on its own Sokoban levels, using the game's normal level-file command <code>des.level_flags("sokoban")</code>.</p>
 <figure class="fig pb-fig"><img class="shot" src="img/w-squeeze.webp" width="1280" height="720" loading="lazy" alt="Real NetHack frame: the hero tries a diagonal step between two boulders on a Sokoban-flagged test level and the game answers 'You cannot pass that way.'">
 <figcaption>The real, compiled game (not our simulator) on one of our test levels: the diagonal step between two boulders is refused with &ldquo;You cannot pass that way.&rdquo; The control run, the same level without the Sokoban flag, lets the hero through. Both are part of our automatic witness tests (W3).</figcaption></figure>
+<h4 id="pb-crevice">The &ldquo;small opening&rdquo; trick, and why it fails on our levels</h4>
+<p>A reader tried this in the real game and got through:</p>
+<pre class="code"><code>###.      . = empty floor
+#p0#      p = player, 0 = boulder, # = wall
+####</code></pre>
+<p>That is two moves the game allows on an ordinary level with a light pack:</p>
+<ol class="tight">
+<li><b>Walk east into the boulder.</b> It can't move (wall behind it). The game then checks whether you are carrying almost nothing (about 150 weight or less; a fresh character often is). If so: <i>&ldquo;However, you can squeeze yourself into a small opening.&rdquo;</i> and you now stand <b>on</b> the boulder's square (<code>could_move_onto_boulder</code>, <code>hack.c:143-163</code> and <code>304-308</code>). Note: this one works even in Sokoban; the game just records it as cheating.</li>
+<li><b>Step diagonally to the empty square.</b> Both corners are walls, so this is a squeeze; a light hero on an ordinary level fits (the flowchart above ends in &ldquo;squeezes through&rdquo;).</li>
+</ol>
+<p>On our levels <b>both moves are blocked</b>, by two different things:</p>
+<ul class="tight">
+<li>Move 1: our hero carries a <b>cursed loadstone</b> (weight 500, and a cursed one can't be dropped). Far too heavy to squeeze onto a boulder: the push just fails with <i>&ldquo;You try to move the boulder, but in vain.&rdquo;</i></li>
+<li>Move 2: the <b>Sokoban flag</b> refuses every squeeze between two corners: <i>&ldquo;You cannot pass that way.&rdquo;</i> (500 is under the 600 weight limit, so the loadstone alone would not stop this one; that is why we need both.)</li>
+</ul>
+<p>Both are checked in the real compiled game by our witness tests (W3 for the squeeze, W4 for the heavy hero, each with a control run where the trick does work).</p>
 <p><b>Why we need it.</b> Our levels copy a known puzzle in which a robot walks only in straight lines and pushes blocks. If the hero could slip diagonally between two boulders, he could get past a spot that the robot cannot, and the copy would be wrong. With the flag on, a diagonal step is allowed only when one corner is open, and then it is no shortcut, because two straight steps reach the same square.</p>
 <p><b>Can the flag be switched off?</b> The game switches it off by itself once every pit and hole on the level is filled (that is how it notices a Sokoban puzzle is solved). So every level we build also has one sealed pit that no boulder can ever reach. The flag stays on for good.</p>
 <p><b>Did we check this in the real game?</b> Yes. We loaded test levels into the real, compiled NetHack: with the flag, the diagonal step between two boulders is refused (&ldquo;You cannot pass that way.&rdquo;); without the flag, the same step succeeds; and after every other pit is filled, the sealed pit keeps the flag on.</p>
