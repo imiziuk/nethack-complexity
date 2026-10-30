@@ -50,14 +50,21 @@ verify in de Berg–Khosravi).
 
 ### 1.1 Hero
 - Human female lawful Valkyrie [assump A0, spec]. Base attributes Str 10, Int 7, Wis 7, Dex 7, Con 10, Cha 7
-  [src role.c:519]; `init_attr` only adds points [conj, standard], so Str+Con ≥ 20. Weight cap
-  wc = 25(Str+Con)+50 ≥ 550, capped at 1000 [src hack.c:4311-4337 via review L-5].
+  [src role.c:519]; `init_attr` only adds points [conj, standard], but `vary_init_attr` then lowers each attribute
+  by up to 2 with probability 1/20 [src attrib.c:763-776, u_init.c:1390-1391], so Str+Con ≥ 16. Weight cap
+  wc = 25(Str+Con)+50 ≥ 450, capped at 1000 [src hack.c:4311-4337 via review L-5]. (Corrected 2026-10-30; the old
+  text said Str+Con ≥ 20, wc ≥ 550.)
 - Not a spellcaster, no Knight jump, no intrinsic Fast at XL1 (Valkyrie Speed comes at XL7, and XL never rises:
   there are no monsters).
 - Script lines: `u.clear_inventory()` (mandatory: it removes the starting food ration [src u_init.c:164 per
   orchestrator]), then `u.giveobj(obj.new("cursed loadstone"))`. The loadstone weighs 500
-  [src objects.h:1600]. Inventory weight 500 ≤ 550 ≤ wc, so the hero is **unencumbered** and stays so,
-  because he never carries anything else (food is eaten from the floor, §1.3). Carrying more than 150 weight
+  [src objects.h:1600]. He never carries anything else (food is eaten from the floor, §1.3). If wc ≥ 500 he is
+  **unencumbered**; after an unlucky setup roll (wc 450-499) he is **Burdened** (SLT_ENCUMBER: excess ≤ 50,
+  (2·50)/450 + 1 = 1), never Stressed (needs wc ≤ 333). Burdened has one effect here: speed 12 → 9 movement per
+  turn [src allmain.c:139-141], so a hero action takes 1 or 2 turns. Hunger stays 1 per turn (the extra point needs
+  > SLT_ENCUMBER [src eat.c:3197]); the other encumbrance checks need ≥ MOD_ENCUMBER, water, stairs or kicking
+  [src hack.c:2368-2381, 2618-2626, do.c:1324, 1780, attrib.c:554-566], none of which occur. Exercise can only raise
+  Str/Con (Not Hungry exercises Con; no abuse occurs), so he stays Burdened or becomes unencumbered. Carrying more than 150 weight
   units means he can never squeeze onto a boulder [src hack.c:139-163]. The cursed stone cannot be dropped or
   thrown [src do.c:685-697].
 - Squeezing is impossible, and Sokoban forbids corner-cutting between bad rock (`cant_squeeze_thru` case 3)
@@ -94,8 +101,8 @@ verify in de Berg–Khosravi).
   entered from n1 and is followed by s1 (a plugged hole, no cookie) and then s2 (cookie). So among any 4
   consecutive moves at least one enters a new cell holding a cookie.
 - An unencumbered, awake hero with no rings, amulets or Regeneration loses exactly 1 nutrition per turn
-  [src eat.c:3167-3270 via review F7]. With speed 12 he gets one action per turn. Hence u.uhunger stays in
-  [855, 900]: never Hungry (>150), never Satiated (>1000), so no fainting, no choking, no Str/Con abuse.
+  [src eat.c:3167-3270 via review F7]. With speed 12 he gets one action per turn; Burdened (speed 9, §1.1) one
+  action per 1 or 2 turns. Hence u.uhunger stays in [849, 900] (§5.1): never Hungry (>150), never Satiated (>1000), so no fainting, no choking, no Str/Con abuse.
   Total cookies = number of floor cells: polynomial.
 - **NO instances:** food changes nothing structural. Cookies are not boulders, cannot plug holes and are not bad
   rock (§2), so the soundness proof (§5.2) ignores them.
@@ -459,7 +466,8 @@ cross I(X) only as steps/switch at depth 9 or as X's own dive). □
 - Boulders: one W per closing site, one Kd per door, two per crossover: #boulders = 2L + 2·#X ≤ 12m² + 54m + 2.
   Holes: #X. Sentinel pits: 1. Fortune cookies: one per floor cell except holes and the pit: F − #X − 1.
 - Intended play (§5.1) length: every cell is entered at most twice (only crossover centres S are re-entered,
-  see §5.1), so N_moves ≤ 2F + 2·(#cookies eaten) ≤ 4F ≤ 148·W_t·H_t turns.
+  see §5.1), so N_moves ≤ 2F + 2·(#cookies eaten) ≤ 4F ≤ 148·W_t·H_t actions, so ≤ 8F turns (≤ 2 turns per action
+  if Burdened, §1.1).
 - Lua script: 13 + #boulders + #X + F lines (one `des.object` per boulder and per cookie, one `des.trap` per hole).
 All are polynomial; the generator runs in time O(F + leg-order search), the search being linear when the drawing
 is given.
@@ -541,13 +549,17 @@ Every cell is entered at most twice: only a crossover centre S (P phase, then K 
 re-entries are isolated (the K pass enters S from n1 and leaves to the plugged s1, then fresh cells).
 [auto-experimentally verified: `max_visits = 2` on all 370 satisfiable levels.] No step depends on the RNG:
 pushes, plugging and hunger are deterministic, and eating a fortune cookie only prints a random text.
-**Food.** u.uhunger starts at 900 and drops by exactly 1 per move (unencumbered, no rings/amulets/Regeneration,
-speed 12 ⇒ one move per turn; §1.3). Policy: on entering a cell that still holds a cookie, eat it iff
-u.uhunger ≤ 860 (+40, at most 2 turns). At most two moves in a row end on a cell without a cookie (a re-entered
-crossover centre S whose cookie was eaten in the P phase, then the plugged hole s1, which never had one), so
-u.uhunger stays in [860 − 3, 900]: never Hungry, never Satiated, no fainting, Rule S never triggers.
+**Food.** u.uhunger starts at 900 and drops by exactly 1 per turn (no rings/amulets/Regeneration, never Stressed;
+§1.3). An action takes 1 turn (speed 12) or 1-2 turns (Burdened, speed 9, §1.1). Policy: on entering a cell that
+still holds a cookie, eat it iff u.uhunger ≤ 860 (+40, at most 2 actions). At most two moves in a row end on a
+cell without a cookie (a re-entered crossover centre S whose cookie was eaten in the P phase, then the plugged hole
+s1, which never had one), so once u.uhunger ≤ 860 a cookie is reached within 3 moves and eaten: u.uhunger ≥
+860 − (3 + 2)·2 = 850 > 849 before the +40 at 2 turns per action ([857, 900] at speed 12). So u.uhunger stays in
+[849, 900]: never Hungry, never Satiated, no fainting, Rule S never triggers.
 [auto-experimentally verified on all 370 satisfiable levels, eating modelled as 2 turns: minimum 859, longest
-cookie-less run 2, longest play 4,241 moves.] Length ≤ 4F turns (§4.6).
+cookie-less run 2, longest play 4,241 moves. Burdened start: `tools/burdened_hunger.py` replays the same walks with
+re-decided eating, 370/370 reach g, minimum 854 at exact speed 9 (9 movement/turn), 852 at 2 turns per action,
+longest 5,902 / 9,182 turns.] Length ≤ 8F turns (§4.6 bound ×2 for speed 9).
 
 ### 5.2 Soundness (NO ⇒ no play reaches g, for every RNG outcome)
 
