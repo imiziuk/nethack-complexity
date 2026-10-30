@@ -21,7 +21,7 @@ Labels: **VERIFIED** = lines read this session, direct reading · **STRONG** = c
 | M | C1-C6 hold for L_OFF^{W+C} ⇒ ∈ EXPTIME under R3 (Thm M) | STRONG |
 | B | Answers to B's C-1..C-4 (§5): C-1 yes, C-2 yes (with N2 correction), C-3 yes under rule Z2, **C-4 no as stated → N1 repair** | STRONG |
 
-## 1. Revision 4 candidate (spec text)
+## 1. Revision 4 (spec text; ADOPTED into phase2-spec.md as Rev. 4 items 10-13 on 2026-10-29)
 
 10. **L_OFF^{W+C} (R3 only).** Common part + L_OFF + Rev. 1-3, with these changes:
    a. Level flags: `noteleport` is **dropped** (forbidden); keep `noflip`, `sokoban`, `hardfloor`, `solidify`
@@ -51,6 +51,28 @@ Labels: **VERIFIED** = lines read this session, direct reading · **STRONG** = c
    a push needs the hero on c−d and a non-obstructed target; walls never change, hu-off I6).
    - **Z1 (boulders)** (Z ∪ N8(Z) ∪ {E} ∪ N8(E)) ∩ R_B = ∅. In particular E ∉ R_B ⇒ T ∉ R_B (a boulder enters T
      only by a push from an orthogonal floor neighbour of T, and E is the only one).
+     **Restated after review 5 (2026-10-29): Z1 uses the EXACT boulder reach, not R_B.** The closure R_B above is
+     too coarse: `review5_rb2.py` shows that for Ani's WO board (inside every SO/SD/MSC/WCX) R_B contains the
+     location cell T (4,0) and from there would spread along any corridor, although exact exploration shows no
+     boulder ever gets there. Exact form:
+     - *Windows.* The instance is a set of gadget windows 𝒲 (each concrete base board: proto-precursor,
+       protodiode, WO, WMC, NR, SD, ... as placed, under a grid symmetry) plus boulder-free corridors and coin
+       tiles; every initial boulder lies in a window; windows are pairwise not 8-adjacent and touch corridors only
+       at their port cells (X_build `check_map` assertions, re-run by X_verify on the saved map).
+     - *Exact reach.* reach(W) = the cells holding a boulder in some state of `A_core.explore(W)` (all traversals
+       from every port, broken states included, any hero strategy); explore raises LEAK if any push could put a
+       boulder on a port cell (G1). R_B^ex := ⋃_{W ∈ 𝒲} reach(W). By G1 + window locality, in every reachable
+       global state every boulder lies in R_B^ex (a boulder can leave its window only across a port cell; a push
+       from inside one window cannot touch another window or a corridor).
+     - **Z1 (exact).** For every coin tile: (Z ∪ N8(Z) ∪ {E} ∪ N8(E)) ∩ R_B^ex = ∅. Sufficient layout rule
+       (review 5): no window cell within Chebyshev distance 3 of Z ∪ {E}; then Z1 holds whatever reach(W) is.
+     - *How it is checked on a generated map.* (1) once per window type: `explore` LEAK-free + reach(W)
+       (`review5_rb2.py` part 2: protodiode 4 states / reach 4 cells, proto-precursor 28 / 8, WMC 6 / 6, NR 147 / 16,
+       WO 123 / 17; no port cell reached; rotated copies are isomorphic, X_verify §0); (2) map locality assertions
+       as above (X_build `check_map`); (3) translate reach(W) by each window's placement, take the union, assert it
+       misses Z ∪ N8(Z) ∪ {E} ∪ N8(E) for every coin tile, and run the D_game lint (Z1/Z2) on the coin tile. On the
+       crossover map `review5_rb.py` (global closure R_B, an upper bound of R_B^ex) finds 0 cells
+       outside the tiles. Step (3) for a full instance waits for the layout generator (review 5 repair 2, open).
    - **Z2 (isolation)** Z's only goodpos non-trap cells are A, B; T's only non-obstructed 8-neighbour is E (outside
      Z); A's (B's) only non-obstructed 8-neighbour is its exit cell X_A (X_B), outside Z; T, A, B pairwise
      non-adjacent (B's tile [A wall T wall B] meets this). X_A, X_B ∉ R_B (from Z1).
@@ -254,8 +276,8 @@ none of Z1-Z4 (a boulder on T or a dead coin are just more configurations).
   unless every pit is filled before the hero can step on it in the intended play.
 
 ## 6. Weakest steps
-1. R_B over-approximation must actually be computed for B's layout (A's gadget files + corridors); Z1 is easy to
-   violate near E/X_A/X_B.
+1. Z1 must actually be computed for B's layout; since review 5 it uses the exact per-window reach R_B^ex (§1), as
+   the closure R_B leaks through WO's location T. Still open until the layout generator exists (review 5 repair 2).
 2. Lemma S^C rows U/X inherit hu-off's entry-point reading (~60 handlers); new rows were read in full except `#sit`
    (taken from monsters-traps §1.4) and object-flight details near T (T1 row relies on hu-off T1 + Z2).
 3. N1 depends on SC3 (wrap) and on `stasis_until == 0` after the harness (read at mklev.c:904; not witnessed).

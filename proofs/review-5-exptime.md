@@ -186,3 +186,56 @@ X's walk *prunes* breaking moves, so it was never meant to exercise them.
    title says "cap removed, wrapping counters".
 6. **Citations:** obtain the SC79 G6 text, and state the first-mover convention used.
 7. Optional: run the Fig. 32 boards (WMC, NR, WO) through R_run in the real engine; enumerate one concrete flat WCX.
+
+## 8. Repairs applied (2026-10-29/30)
+
+Repair agent; game not run, nothing committed. Scripts in `tools/exptime/`, outputs in `build/xover/`.
+
+| # | Repair | Status | Evidence |
+|---|---|---|---|
+| 1 | Split check legs in the SCD and diode tiles; rebuild + re-verify the crossover | **DONE** | see below |
+| 2 | Layout generator (B bus layout + Thm 5.3 G′ wrappers + Lemma 5.6 chain), Z1/Z2 on it | **OPEN** | not started; the 684 check locations of the v2 map are not yet routed into a check path |
+| 3 | Spec Rev. 4 adopted (normal mode, Str+Con line) | **DONE** | `phase2-spec.md` Rev. 4 items 10-13; common-part template line now "start Str+Con ≥ 12 for every setup outcome"; commands line + item 11 require `flags.debug` = false (wizard prompt at `scrolltele`, teleport.c:872-873); witness caveat in `exptime-feasibility.md` §9 note 1 |
+| 4 | Z1 restated with exact boulder reach | **DONE** | `C-audit.md` §1 (Z1 exact: R_B^ex = ⋃ windows' explore reach, G1 LEAK-free + window locality; sufficient rule: no window within Chebyshev 3 of Z ∪ {E}; how to check on a generated map); §6 item 1 updated |
+| 5 | B text: Z4 waits, O(N⁴), poly time, cap removed | **DONE** | `B-reduction.md`: title + scope box + result table (T2, S, ⇒) say "10^9 cap removed, counters wrap"; H_σ (§4.3) and T2 (§5.4, both directions) have the Z4 waits / dead-phase bounce; §6.2-6.3 size O(N⁴) citing B2 §3.6; computability = polynomial time, log space not claimed |
+| 6 | SC79 original text, first-mover convention | **OPEN** | not attempted |
+
+**Repair 1 details.**
+- `X_build.py`: new `scd_tile(variant)` (19×37 / 21×43) and `diode_tile()` (5×11). Every L′ location of every
+  component and the SCD's O, I, J has its own 3-cell leg (Wb, mid, Wt) before its junction, as in `B2_e2e.gprime`;
+  contract `check_tile_legs` asserted. v1 tiles kept as `scd_tile_v1`/`diode_tile_v1`; v1 map saved as
+  `build/xover/crossover_v1.{txt,json,png}`, `crossover_small_v1.png`, `routes_v1.json`.
+- Attacks re-run on the NEW tiles, check map read off the tile geometry (component Wb slots walled):
+  - `review5_abc.py`: v2: ports sharing a check region: none; precursor clean set [(3,5),(3,6),(4,6)] (3), toggle 3,
+    diodes 2/4; flat SCD (10,927 raw states) → 12 clean, **broken absorbing True, postselected vs ideal SCD SOUND True
+    COMPLETE True** for both initial states. v1 (control): A, B, C (+E, F) share regions, prec clean 5, 36 clean,
+    absorbing False, SOUND False.
+  - `review5_cd.py`: v2 diode tile and both SCD diodes: C, D in different regions, clean 2 of 4 = split set,
+    broken absorbing. v1: joined, clean 3 of 4.
+- New map (`python X_build.py`, seed 2, scale 453 after the build's own enlargement): 453×432, 11,760 floor cells,
+  166 boulders, 66 tiles (SCD variants 5×v0, 1×v1, 14×v2), 46 corridors; `check_map` passes. Getting the bigger
+  tiles routed needed a de-degenerated drawing, a vertex-edge clearance pass, port-order variants placed by the
+  widest-sector rule and negotiated-congestion routing (X-crossover.md §7).
+- `X_verify.py` (adapted: per-variant canonical tiles, new part (d)): grid symmetries isomorphic; (a) 7 states, SOUND
+  + COMPLETE vs directed crossover, negative controls fail; (b) only A1→B1, A2→B2; **(d) 66 placed tiles: every check
+  location alone with all Wb (or Wt) walled, intended joins only; 604 legs, 684 check locations**; tile systems:
+  SCD 12 clean = ideal, diode 2 clean = ideal; (c1) 8 scripted crossings reach their exits (61,112 moves); (c2)
+  100k moves no assertion failed; `--ext-only` 100k moves, 2,772 external returns all strictly reachable. ALL AS
+  EXPECTED.
+- Found while re-running: X_verify's global-vector check was not an invariant of its own random walk (episodes that
+  start at an internal corridor cell drop the hero at an internal junction); fixed (strict check until the first drop,
+  plus the `--ext-only` mode). Not a map bug.
+- `review5_rb.py` on the new map: closure R_B 664 cells, 0 outside the tiles. `X_render.py` re-run
+  (`crossover.png`, `crossover_small.png`).
+- Docs: `X-crossover.md` (§0 table, §3 drops note, §5 check ports v2, §6 size, §7 v1 bug + fix), `INTERFACE.md`
+  ("X v2" entry).
+
+**Repair 4 evidence** (`review5_rb2.py`, part 2 added): exact reach per window, broken states included, no LEAK:
+protodiode 4 states / 4 cells, proto-precursor 28 / 8, WMC 6 / 6, NR 147 / 16, WO 123 / 17; no port cell reached
+(the R_B closure reaches WO's T (4,0); exact exploration does not).
+
+**Theorem status after the repairs.** The joined-port soundness bug (§3a) is fixed at the tile level and on the
+assembled crossover map. EXPTIME-hardness at the NetHack level stays conditional on repair 2 (no generated instance
+yet, so the guard argument and Z1/Z2 are still checked only on the B2_e2e one-SCD instance and the coin tile) and on
+the SC79 citation (repair 6).
+

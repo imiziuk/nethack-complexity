@@ -90,3 +90,19 @@ the gadgets or coin use depends on wrap-sensitive `moves` comparisons; Fumbling 
 - **Check ports for B2's check path** (`tiles.<gid>.checks`, global cells; all dead ends inside the tile, NOT routed
   out): per SCD `tog.D tog.G prec.D prec.G` (pockets), `tog.ABC prec.ABC` (joined A/B/C hallways: A2 §5 wants them
   split), `d1.CD d2.CD`; per diode `d.CD`. 20·8 + 46 = 206 check ports; each needs a guarded entry after t.
+
+## X v2 (review 5 repairs, 2026-10-30) → B2, C, generator  (details: X-crossover.md §5, §7; review-5-exptime.md)
+- **v1 check ports were unsound** (joined `*.ABC`, `*.CD`: precursor check passes broken states, SCD SOUND False).
+  v1 map kept as `build/xover/crossover_v1.*`; do not use its `checks`.
+- **v2 map** `build/xover/crossover.txt/.json` (453×432, 166 boulders, `tile_version` 2, `leg_len` 3): every check
+  location on its own delimited leg. Per tile `checks` (g-side cell) + `legs.<name>` = {gside, cells, Wb, mid, Wt,
+  node}; names `tog.A..G`, `prec.A..G`, `d1.A..D`, `d2.A..D`, `scd.O/I/J` (SCD, 25 locations, 21 legs) and `d.A..D`
+  (diode). 684 check locations, 604 legs. Put WCX_b on `Wb`, WCX_t on `Wt` (B2_e2e `gprime` order); junctions are
+  beyond Wt. SCD tiles come in 3 port-order variants (`variant` 0/1/2), all with the same internal legs.
+- Machine evidence: X_verify (a)-(d), c1, c2 incl. `--ext-only`; review5_abc/cd on the tile geometry: v2 PASS
+  (clean set 3, broken absorbing, SOUND True), v1 FAIL.
+- For C (Z1): Z1 is now stated with the exact per-window reach R_B^ex (C-audit §1); on this map the closure R_B still
+  stays inside the tiles (664 cells, 0 outside, `review5_rb.py`).
+- For the generator (review 5 repair 2, OPEN): route the 684 locations into the global chain with guards; Z1 (exact)
+  + Z2 lint on the generated instance.
+

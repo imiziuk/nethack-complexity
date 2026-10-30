@@ -248,6 +248,11 @@ Surprises / harness notes:
    hero's own cell T; T is a trap ⇒ `teleok` false ⇒ "Sorry..." ⇒ `safe_teleds`, i.e. exactly the non-wizard path
    (observed "Sorry..." before every landing). A non-wizard game cannot load the level, so this is the closest
    faithful run. A queued key (not a tty key) at that prompt would abort the teleport (getpos.c:816-825).
+   **Witness harness caveat (review 5, spec Rev. 4 item 11):** the witnesses ran in wizard mode, used ONLY to load
+   the level (`#wizloadlua`); the teleport prompt was answered with the hero's own cell so that the normal-mode
+   `safe_teleds` path ran. The language itself requires normal mode (`flags.debug` = false): in wizard mode the hero
+   could answer the prompt with A or B and choose the coin outcome. So W9-W11c witness the normal-mode landing
+   distribution through the same `safe_teleds` call, not a normal-mode game end to end.
 2. Fumbling's `nomul(-2)` and its `unmul` clear the canned key queue (hack.c:4172 `cmdq_clear`), so scripted keys
    pushed while helpless are dropped; the scripts re-push until the hero moves (no double moves possible).
 3. API form confirmed (sp_lev.c:5410-5459, mkmaze.c:611-634, teleport.c:386-418): `des.teleport_region({ region =
@@ -257,5 +262,6 @@ Surprises / harness notes:
    not start at absolute x = 0. `des.exclusion` is a different mechanism (arrival placement / monster generation,
    mkmaze.c:423, teleport.c:181), not usable for the coin.
 4. Encumbrance: this Valkyrie with loadstone 500 + boots 20 was never Burdened; the wc ≥ 520 margin claim (§3.3)
-   still needs the general check for the instance's fixed attributes.
+   still needs the general check for the instance's fixed attributes. (Settled in C-audit N2 / spec Rev. 4 item 12:
+   R3 setup can give Str = Con = 8 ⇒ Burdened, speed only; Stressed needs Str+Con ≤ 11.)
 Not run: §7 W10 boulder-onto-T (M6 hazard) and W11 fumble-push (W1-W4 with boots) from the original §7 list.

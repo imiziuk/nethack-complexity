@@ -16,3 +16,20 @@ for name, rows in boards.items():
                 R.add((x + dx, y + dy)); st.append((x + dx, y + dy))
     hit = sorted((rows[y][x], (x, y)) for x, y in R if rows[y][x].isupper())
     print(f'{name:16s} boulders {len(B)} R_B {len(R)} port cells in R_B: {hit}')
+
+# ---- repair 4 (2026-10-29): exact per-window boulder reach (G1).  K.explore enumerates every boulder set reachable by
+# traversals from every port (all hero strategies, broken states included); it raises LeakError if any push could put
+# a boulder on a port cell. Exact reach = union of boulder cells over all reachable states.
+import A_core as K
+print('-- exact boulder reach (A_core.explore, all ports, broken states included)')
+for name, rows in boards.items():
+    bd = K.Board(rows)
+    try:
+        C = K.explore(bd)
+    except K.LeakError as e:
+        print(f'{name:16s} LEAK {e}'); continue
+    reach = {bd.cells[i] for B in C.states for i in range(len(bd.cells)) if B >> i & 1}
+    ports = {bd.cells[i] for i in bd.ports.values()}
+    near = sorted(c for c in reach for p in ports if max(abs(c[0] - p[0]), abs(c[1] - p[1])) <= 1)
+    print(f'{name:16s} states {len(C.states):6d} exact reach {len(reach):3d} cells; port cells reached: '
+          f'{sorted(reach & ports)}; cells 8-adjacent to a port: {near}')

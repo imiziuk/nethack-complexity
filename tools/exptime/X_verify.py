@@ -5,6 +5,7 @@
      (A_core.explore, exact state/transition bijection) -> rotated/reflected tile copies are VERIFIED copies;
   a. map -> wiring (X_build.check_map, re-run from the saved map only) -> Net2 of ideal SCDs + ideal diodes
      == directed crossover (sound + complete), negative controls fail;
+  d. (tile v2) every placed tile: each check location on its own delimited leg (part_d, from the saved map);
   b. exact one-player port relation of that network in every reachable state (only A1->B1, A2->B2);
   c. concrete play on the full map with A_core.Board (one board, all 166 boulders):
      c1 scripted: realise A1->B1, A2->B2 (several rounds) move by move, planned per gadget on the canonical tile;
@@ -16,7 +17,8 @@
      restricted to clean) and keeps a nonempty set of related ideal states, and every external traversal is A1->B1,
      A2->B2 or a bounce, with the projected ideal state vector a reachable state of the ideal network.
 Writes build/xover/routes.json (cells of the realised A1->B1 / A2->B2 walks, for X_render.py).
-Usage: python X_verify.py [--moves N] [--seed S]
+Usage: python X_verify.py [--moves N] [--seed S] [--ext-only]  (--ext-only: random episodes start only at external
+ports, so the strict external-reachability check of the projected ideal vector applies to every external return)
 """
 import json, os, random, sys, time
 from collections import deque
@@ -134,6 +136,35 @@ def part_ab(M):
     return ok, N, NW
 
 
+# ============================================================ d. split check legs on every placed tile (review 5 repair 1)
+def part_d(M):
+    """From the saved map + json only: for every tile copy, (i) its hero regions (component interiors removed) join
+    exactly the intended ports; (ii) with all component-level Wb (resp. Wt) delimiter slots walled, every component
+    port (incl. hidden pockets D, G) is alone in its region, i.e. every check location has its own delimited leg;
+    (iii) tile-level legs (SCD O, I, J) delimit the tile ports. Same contract as X_build.check_tile_legs on the
+    canonical tile, re-checked after symmetry + compaction."""
+    canon_v = {('scd', k): XB.scd_tile(k) for k in XB.SCD_VARIANTS}
+    canon_v[('dio', None)] = XB.diode_tile()
+    floor = {(x, y) for y, r in enumerate(M.rows) for x, ch in enumerate(r) if ch != '#'}
+    nlegs = nchk = 0
+    for n, T in M.J['tiles'].items():
+        cells = {P(c) for c in T['cells']}
+        comps = [(C['name'], C['kind'], {key(lc): P(gc) for lc, gc in C['cells'].items()}) for C in T['comps']]
+        owner, cport = XB.comp_owner(cells, comps)
+        legs = {l: dict(gside=P(Lg['gside']), cells=[P(c) for c in Lg['cells']], Wb=P(Lg['Wb']), Wt=P(Lg['Wt']))
+                for l, Lg in T['legs'].items()}
+        tports = {p: P(Q['cell']) for p, Q in T['ports'].items()}
+        ct = canon_v[(T['kind'], T.get('variant'))]
+        assert set(legs) == set(ct.legs), ('leg set differs from canonical tile', n)
+        XB.check_tile_legs(ct, cells=cells, owner=owner, cport=cport, legs=legs, tports=tports,
+                           corner_floor=lambda c: c in floor)
+        nlegs += len(legs)
+        nchk += len(T['checks'])
+    print(f'  (d) {len(M.J["tiles"])} placed tiles: every check location on its own delimited leg (Wb / Wt cut => '
+          f'all component ports separated), intended joins only; {nlegs} legs, {nchk} check locations')
+    return True
+
+
 # ============================================================ tile systems (concrete, postselected) + ideal relations
 def tile_systems():
     bp = K.Board(S2.PROTO_PRECURSOR)
@@ -215,9 +246,10 @@ class Concrete:
                         self.comp_of[gc] = kk
                 self.ctrack[kk] = set(self.cloc[kk])
         # every tile copy == its canonical tile under the recorded symmetry (cell by cell, boulders included)
-        canon = {'scd': XB.scd_tile(), 'dio': XB.diode_tile()}
+        canon = {('scd', k): XB.scd_tile(k) for k in XB.SCD_VARIANTS}
+        canon[('dio', None)] = XB.diode_tile()
         for n, T in J['tiles'].items():
-            tl = canon[T['kind']]
+            tl = canon[(T['kind'], T.get('variant'))]
             assert len(T['local']) == len(tl.cells) == len(T['cells'])
             for lc, gc in T['local'].items():
                 x, y = P(gc)
@@ -242,7 +274,25 @@ class Concrete:
         self.corr = [c for c in bd.cells if c not in self.tile_of]
         self.gnames = NWideal.names
         self.reach_ideal = set(Nideal.states)
-        self.stats = dict(moves=0, pruned=0, ctrav=0, ttrav=0, etrav=0, doom=0)
+        # random-walk episodes may start at an internal corridor cell, i.e. DROP the hero at an internal junction,
+        # which the external-port network model does not allow. reach_any = closure of the initial ideal vector under
+        # single gadget traversals from ANY node (superset of every walk with drops). The external-reachability check
+        # is enforced until the first drop; afterwards the vector must lie in reach_any (2026-10-30, v2 rerun).
+        reach_any = set(Nideal.states)
+        todo = list(reach_any)
+        while todo:
+            St = todo.pop()
+            for gi, g in enumerate(NWideal.names):
+                sysm, pm = NWideal.g[g]
+                for p in pm:
+                    for _, s2 in sysm.T.get((St[gi], p), ()):
+                        S2_ = St[:gi] + (s2,) + St[gi + 1:]
+                        if S2_ not in reach_any:
+                            reach_any.add(S2_)
+                            todo.append(S2_)
+        self.reach_any = reach_any
+        self.dropped = False
+        self.stats = dict(moves=0, pruned=0, ctrav=0, ttrav=0, etrav=0, doom=0, vec_drop_only=0)
         self.reset_tracking()
         # ideal state sets per tile
         self.iset = {n: {'c'} if self.kind[n] == 'scd' else {'d'} for n in M.tiles}
@@ -347,8 +397,11 @@ class Concrete:
             if self.last_ext is not None and self.left_ext:
                 assert e == self.last_ext or (self.last_ext, e) in (('A1', 'B1'), ('A2', 'B2')), \
                     ('illegal external traversal', self.last_ext, e)
-                vecok = any(all(st[i] in self.iset[g] for i, g in enumerate(self.gnames)) for st in self.reach_ideal)
-                assert vecok, 'projected ideal vector not a reachable network state'
+                inn = lambda st: all(st[i] in self.iset[g] for i, g in enumerate(self.gnames))
+                if not any(inn(st) for st in self.reach_ideal):
+                    assert self.dropped, 'projected ideal vector not reachable from the external ports (no drop yet)'
+                    assert any(inn(st) for st in self.reach_any), 'projected ideal vector not reachable even with drops'
+                    self.stats['vec_drop_only'] += 1
                 self.stats['etrav'] += 1
             self.last_ext = e
             self.left_ext = False
@@ -503,7 +556,9 @@ def random_walk(CC, B, nmoves, rng, ep_len=1500):
             print(f'  (time budget {BUDGET}s reached)', flush=True)
             break
         episodes += 1
-        h = bd.idx[rng.choice(exts)] if rng.random() < 0.3 else bd.idx[rng.choice(CC.corr)]
+        h = bd.idx[rng.choice(exts)] if ('--ext-only' in sys.argv or rng.random() < 0.3) else bd.idx[rng.choice(CC.corr)]
+        if bd.cells[h] not in CC.extcell:
+            CC.dropped = True
         CC.reset_tracking()
         if bd.cells[h] in CC.extcell:
             CC.last_ext = CC.extcell[bd.cells[h]]
@@ -562,6 +617,8 @@ def main():
     print('== a/b. abstract network read off the map')
     okab, Ni, NWi = part_ab(M)
     ok &= okab
+    print('== d. split check legs (tile v2)')
+    ok &= part_d(M)
     print('== c. concrete play on the full map')
     TS = tile_systems()
     ok &= TS['ok']
@@ -575,7 +632,7 @@ def main():
     B, eps = random_walk(CC, B, nmoves, rng)
     st2 = {k: CC.stats[k] - st1.get(k, 0) for k in CC.stats}
     print(f'  c2 random walk: {eps} episodes, {st2["moves"]} moves, {st2["ctrav"]} component traversals, '
-          f'{st2["ttrav"]} tile traversals, {st2["etrav"]} external returns checked, {st2["pruned"]} component-breaking moves pruned, {st2["doom"]} tile-breaking traversals undone, {CC.stats.get("stuck", 0)} trapped excursions abandoned; '
+          f'{st2["ttrav"]} tile traversals, {st2["etrav"]} external returns checked ({st2["vec_drop_only"]} explained only with drops; {len(CC.reach_any)} drop-closure states), {st2["pruned"]} component-breaking moves pruned, {st2["doom"]} tile-breaking traversals undone, {CC.stats.get("stuck", 0)} trapped excursions abandoned; '
           f'no assertion failed')
     json.dump({k: sorted(v) for k, v in cells.items()}, open(os.path.join(OUT, 'routes.json'), 'w'))
     print(f'wrote build/xover/routes.json ({time.time() - t0:.0f}s)')

@@ -1,4 +1,8 @@
-# Workstream B: global reduction G6 ≤_p L_OFF^{W+C} under R3
+# Workstream B: global reduction G6 ≤_p L_OFF^{W+C} under R3 (turn cap removed, wrapping counters)
+
+> **Scope (review 5 repair 5, 2026-10-29).** L_OFF^{W+C} is phase2-spec Rev. 4 item 10: the 10^9 turn cap is
+> DELETED and fixed-width counters wrap (SC3). Unmodified NetHack 5.0.0 ends every game at `moves` ≥ 10^9 ("The
+> dungeon capitulates", allmain.c:253), which bounds all plays and is not what this theorem is about.
 
 B agent, 2026-10-29. Nothing run, nothing committed; only this file and an append to INTERFACE.md were written.
 Inputs read: exptime-sources.md (G6, §5 sketch, N1-N5), exptime-feasibility.md (coin C, §3, §4.0-4.3, §9 W9-W11),
@@ -15,9 +19,9 @@ argument, not reviewed) · **CONJECTURE**.
 | L1 | G6 with "F checked only right after Player I's moves" has the same winner as G6 | STRONG (elementary) |
 | TS | A k-user "multi-tunnel" self-closing door MSCD(a,s) is simulated by one SCD + context SCDs + diodes, sound and complete for the plays used | STRONG |
 | T1 | **Abstract:** Player I wins G6(F, α₀) ⇔ the agent wins the one-agent nature game 𝒢_F built from SCD/MSCD, diodes, crossovers and ONE coin vertex (§3) | STRONG |
-| T2 | **NetHack:** 𝒢_F realized in L_OFF^{W+C} (I_F) has the same winner under R3, given A's game-safe gadgets (G1-G5) and C's audit items C-1..C-4 | STRONG *conditional* on A and C; CONJECTURE overall until A/C land |
-| S | I_F has O(N²) cells, O(N²) crossovers, ONE coin; computable in log space (N = |F| + |X| + |Y|) | STRONG |
-| ⇒ | With Thm M (exptime-model §2.2): **L_OFF^{W+C} under R3 is EXPTIME-complete** | CONJECTURE (= T2's conditions) |
+| T2 | **NetHack (cap removed, wrapping `moves`):** 𝒢_F realized in L_OFF^{W+C} (I_F) has the same winner under R3, given A's game-safe gadgets (G1-G5), C's audit items C-1..C-4 and design rules Z1-Z4 (H_σ waits out the dead coin phase, §5.4) | STRONG *conditional* on A and C; CONJECTURE overall until A/C land |
+| S | I_F has O(N⁴) cells (O(N²) crossovers + O(N⁴) check-path machinery, B2 §3.6), ONE coin; computable in polynomial time (N = |F| + |X| + |Y|) | STRONG |
+| ⇒ | With Thm M (exptime-model §2.2): **L_OFF^{W+C} under R3 (10^9 turn cap removed, counters wrap) is EXPTIME-complete** | CONJECTURE (= T2's conditions) |
 
 What the proof does NOT need: monsters, doors, any RNG other than the coin, any toggle gadget, more than one coin,
 any timing race. Key design choices: (i) the CNF checker is a **dead end** ending only in g, so a failed check is a
@@ -176,6 +180,9 @@ By L1 let σ be a positional winning strategy of I in G6'. Hero strategy H_σ (f
 canonical door state):
 - At h with assignment α (canonical: Lit = Open(α), all K closed): take the route of σ(α) (W(x_i := b) or pass),
   opening every O-tunnel; arrive at P with Lit = Open(α'), α' = α after I's move (Inv-L⁺).
+- **Z4 waits (NetHack realization only, §5.4; a no-op in 𝒢_F):** before every step onto the coin trap T, if `moves ≤ 0` (dead phase after the W_C wrap,
+  C-audit N1), wait (`s`/`.`) until `moves ≥ 1`, then step. Waiting is free (hunger off, no monsters, HP constant)
+  and changes no π-data (C-1); this is the only place H_σ reads `moves`.
 - At P: if F(α') then enter the checker: for each j pick an occurrence (ℓ, j) with ℓ true under α' (exists); D_{ℓ,j}
   is open; pass its S²; reach g. (S² closes the door; the hero never needs it again.) Otherwise go to N_in.
 - In the nature module: open K_root; at H_A/H_B take the unique branch with an open K (Lemma N: exactly K_{u_k} is
@@ -263,17 +270,21 @@ outcomes, i.e. options outside the ideal set that never reach g; C must confirm 
 the new whitelist items: TELEP_TRAP via #untrap, wearing/removing cursed boots).
 
 ### 5.4 T2 statement and proof
-**T2.** Under G1-G5 (+ §5.2 if checkable) and C-1..C-4: the hero has an R3-winning strategy in I_F ⇔ he wins 𝒢_F.
+**T2 (cap removed).** In the turn-cap-deleted, wrapping-counter game of spec Rev. 4 (unmodified 5.0.0 would end the
+game at `moves` ≥ 10^9, allmain.c:253), under G1-G5 (+ §5.2 if checkable), C-1..C-4 and design rules Z1-Z4
+(C-audit §1; Z1 in its exact-reach form): the hero has an R3-winning strategy in I_F ⇔ he wins 𝒢_F.
 *Proof sketch (STRONG modulo the assumptions).* (⇐) H_σ realized via G4: corridors are boulder-free walks, gadget
 transitions RNG-free walks, the coin is entered at T with the boots worn (the hero puts them on first; cursed, they stay
-on). By C-1 the only nature choice that matters is the landing cell ∈ {A, B} (VERIFIED W9: never T, never outside Z,
+on), and **waiting before T while `moves ≤ 0`** (Z4: the dead coin is never entered, so every coin use is a live
+one; with Z2 a dead-phase entry would only be a bounce back to E). By C-1 the only nature choice that matters is the landing cell ∈ {A, B} (VERIFIED W9: never T, never outside Z,
 never "no move"), which is exactly the abstract coin. HP never drops (G5, coin zero damage, C-1), so the play survives
 any length. (⇒ contrapositive) Given ν_τ for 𝒢_F, nature plays it on the π-image of clean histories (choosing the
 `safe_teleds` coordinates of A or B), and arbitrary legal values for all other RNG calls (C-1: irrelevant). By G2 and
 the monotone-simulation remark (§2.2) every realized hero option is an abstract option, a null visit, a stuck pocket,
-a break (never wins by §5.2/G3), a death, or leaving the level (losses, model §1.1). So a realized play reaching g
+a break (never wins by §5.2/G3), a dead-phase bounce at T (Z2: a null visit, hero back on E), a death, or leaving
+the level (losses, model §1.1). So a realized play reaching g
 projects to an abstract ν_τ-play reaching g, contradicting §4.4. ∎
-Then T1 + T2 + pre-processing give G6 ≤_p L_OFF^{W+C} (R3), and with Thm M: EXPTIME-complete (CONJECTURE until A's
+Then T1 + T2 + pre-processing give G6 ≤_p L_OFF^{W+C} (R3, cap removed), and with Thm M: EXPTIME-complete (CONJECTURE until A's
 gadgets meet G1-G5 and C confirms C-1..C-4). R2 stays in PSPACE and R4 is not covered (re-triggerable coin, model H8).
 
 ## 6. Size, planarity, crossovers — STRONG
@@ -291,8 +302,8 @@ Gadget, fork and coin tiles (side c_A, A's constant; each drawn with all ports o
 internal crossovers per tile if A's port order differs) sit in one bottom row. Each route edge e gets its own
 horizontal track row r_e above the tiles and its own column at each endpoint: up from the source port to r_e, along
 r_e, down to the target port. Two routes meet only where a vertical column crosses a horizontal track; there a
-**directed crossover tile** carries both. Columns ≤ 2E, rows ≤ E + 1 ⇒ crossovers ≤ 2E² = O(N²) and the map has
-≤ c_A²(2E)(E+1) = O(N²) cells. Corners and merges are plain corridor cells (merges have diodes on every in-edge).
+**directed crossover tile** carries both. Columns ≤ 2E, rows ≤ E + 1 ⇒ crossovers ≤ 2E² = O(N²) and the main
+layout has ≤ c_A²(2E)(E+1) = O(N²) cells; the global check path adds O(N⁴) cells (§6.3, B2 §3.6). Corners and merges are plain corridor cells (merges have diodes on every in-edge).
 The coin tile: Z = 1×5 row [A, wall, T, wall, B] (A, B not adjacent to T, so no re-roll from A/B), entry E_C below T,
 exits above A and B into diodes, all ≥ 3 cells boulder-free; one `des.teleport_region{region = s, exclude = Z,
 …_islev = true}` call (feasibility §9 note 3). Crossovers on write-path routes are traversed exponentially often:
@@ -302,8 +313,14 @@ general, and no planar G6 variant is known to B; so a reusable crossover (or A's
 door-universality crossover, Ani et al. FUN 2020 Lemma 2.6 [secondary]) is required.
 
 ### 6.3 Size bound
-|I_F| = O(N²) map cells + O(N²) boulder/trap lines (one trap: T) + the fixed harness. The construction is a fixed
-pattern per route/gadget indexed by counters, so f is log-space computable. Pre-processing (F(α₀) true ⇒ fixed YES
+|I_F| = **O(N⁴)** map cells and boulder/trap lines (one trap: T) + the fixed harness. The O(N²) bound above covers
+only the main layout: with checkable gadgets the global check path (B2 §3.6) needs one G′ wrapper per raw component
+(O(1) each, O(N²) components incl. the crossover tiles' SCDs and diodes), and the chain crosses each of the O(N²)
+route edges once per chain segment, giving O(N·E) = O(N⁴) CHX/SX gadgets of O(1) cells each (B2 §3.6, STRONG).
+**Computability: polynomial time** (not log space, review 5 §5): the concrete crossover map is produced by a planar
+drawing (Tutte placement) and sequential rip-up routing (X_build.py), and the check-path layout generator is not yet
+written; all of these run in polynomial time, which is all EXPTIME-hardness under ≤_p needs. (Log space would need a
+hard-coded constant crossover tile and a regular bus layout; not claimed.) Pre-processing (F(α₀) true ⇒ fixed YES
 instance) is a formula evaluation.
 
 ## 7. Weak points (ranked)
