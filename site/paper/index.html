@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=IBM+Plex+Mono:wght@400;500;600&family=Spectral:ital,wght@0,400;0,600;1,400&family=VT323&display=swap">
-<link rel="stylesheet" href="style.css?v=20261029c">
+<link rel="stylesheet" href="style.css?v=20261030a">
 <script>(function(){var r=document.documentElement,d=null,v=null;r.classList.add('js');try{d=localStorage.getItem('nhp-depth');v=localStorage.getItem('nhp-view');}catch(e){}if(d!=='0'&&d!=='1'&&d!=='2'&&d!=='3'){d='0';}r.setAttribute('data-depth',d);if(v==='tiles'||(v===null&&d==='0')){r.classList.add('tilemode');}})();</script>
 </head>
 <body>
@@ -58,11 +58,11 @@
 <p class="pub-link needs-js" id="pub-link"><span>New to complexity?</span> <button type="button" class="pb-go" data-goto="0">Read the For-everyone version</button></p>
 
 <section class="pub" id="public" aria-labelledby="pub-h">
-<p class="pb-kick">For everyone · about 10 minutes · no math needed</p>
+<p class="pb-kick">For everyone · about 12 minutes · no math needed</p>
 <h2 id="pub-h">How hard is NetHack? A version for everyone</h2>
 <p class="pb-lead">NetHack is an old dungeon game: you walk a hero around a grid, push boulders, eat, and try not to die. This page asks a computer-science question about it and explains the answer in plain words, with things you can play.</p>
 <p class="pb-honest"><b>Honest label:</b> this is a draft by a student researcher. The proofs have been checked by computer tools and by several rounds of critical review, but no journal or conference has reviewed them yet.</p>
-<p class="pb-jump"><a href="#pb-play">&#9654; Play the boulder puzzle</a><a href="#pb-walk">&#9654; Walk a real generated level</a></p>
+<p class="pb-jump"><a href="#pb-play">&#9654; Play the boulder puzzle</a><a href="#pb-levels">&#9654; Which levels? From random to ours</a><a href="#pb-walk">&#9654; Walk a real generated level</a></p>
 
 <h3 id="pb-q">1. The question in one picture</h3>
 <div class="pb-two">
@@ -159,7 +159,167 @@ if (dx &amp;&amp; dy &amp;&amp; bad_rock(u.ux, y) &amp;&amp; bad_rock(x, u.uy)) 
 <p><b>Why we need it.</b> Our levels copy a known puzzle in which a robot walks only in straight lines and pushes blocks. If the hero could slip diagonally between two boulders, he could get past a spot that the robot cannot, and the copy would be wrong. With the flag on, a diagonal step is allowed only when one corner is open, and then it is no shortcut, because two straight steps reach the same square.</p>
 <p><b>Can the flag be switched off?</b> The game switches it off by itself once every pit and hole on the level is filled (that is how it notices a Sokoban puzzle is solved). So every level we build also has one sealed pit that no boulder can ever reach. The flag stays on for good.</p>
 <p><b>Did we check this in the real game?</b> Yes. We loaded test levels into the real, compiled NetHack: with the flag, the diagonal step between two boulders is refused (&ldquo;You cannot pass that way.&rdquo;); without the flag, the same step succeeds; and after every other pit is filled, the sealed pit keeps the flag on.</p>
-<h3 id="pb-hard">3. What does "hard" mean?</h3>
+<h3 id="pb-levels">3. From a random NetHack level to ours</h3>
+<p>Our results are not about every NetHack level. They are about levels of one particular kind, and this part shows exactly which kind. We start from levels the real game made by itself, then remove or fix one thing at a time until only our kind of level is left.</p>
+
+<h4 id="pb-lv-real">Three levels the game made by itself</h4>
+<p>We started three fresh games of the real NetHack 5.0.0 and jumped to dungeon level 4. The pictures show the whole level as the game generated it, with nothing changed. (To see the whole map at once we used the game's debugging mode, which can reveal the map and detect objects and monsters; we only looked.)</p>
+<figure class="fig pb-fig lv-fig" id="fig-lv-real">
+<div class="lv-gal">
+<figure class="lv-one">
+<div class="lvimg"><img class="v-tiles" src="img/levels/rand1-tiles.webp" width="1040" height="336" loading="lazy" alt="Random level A, drawn with NetHack's tiles: seven rooms joined by corridors, an up and a down staircase, a rust trap and a bear trap, four monsters (a grid bug, a coyote, a gecko and a newt) and nine items lying around, among them gold, chain mail, a potion, a scroll, a lock pick, a crossbow, a goblin statue and a boulder."><img class="v-text" src="img/levels/rand1-text.webp" width="715" height="420" loading="lazy" alt="Random level A in the game's text symbols: seven rooms joined by corridors, an up and a down staircase, a rust trap and a bear trap, four monsters (a grid bug, a coyote, a gecko and a newt) and nine items lying around, among them gold, chain mail, a potion, a scroll, a lock pick, a crossbow, a goblin statue and a boulder."></div>
+<figcaption><b>Level A.</b> Two traps (rust, bear), four monsters, nine items, a staircase up and one down. Seven more coins and gems are buried and not drawn.</figcaption>
+</figure>
+<figure class="lv-one">
+<div class="lvimg"><img class="v-tiles" src="img/levels/rand3-tiles.webp" width="1264" height="336" loading="lazy" alt="Random level B, drawn with NetHack's tiles: a shop on the far left packed with about thirty items and its shopkeeper, two fountains, a grave, an up and a down staircase, a hobbit and a small mimic disguised as an item, plus a few loose items in other rooms."><img class="v-text" src="img/levels/rand3-text.webp" width="869" height="420" loading="lazy" alt="Random level B in the game's text symbols: a shop on the far left packed with about thirty items and its shopkeeper, two fountains, a grave, an up and a down staircase, a hobbit and a small mimic disguised as an item, plus a few loose items in other rooms."></div>
+<figcaption><b>Level B.</b> A shop full of items with its shopkeeper, two fountains, a grave, a hobbit and a mimic pretending to be an item. Twenty-two more coins and gems are buried.</figcaption>
+</figure>
+<figure class="lv-one">
+<div class="lvimg"><img class="v-tiles" src="img/levels/rand5-tiles.webp" width="1152" height="304" loading="lazy" alt="Random level C, drawn with NetHack's tiles: eight rooms joined by corridors, three altars in one small room, one staircase up and two down, four traps (a dart trap, a pit, a squeaky board and a rust trap), a bat, a closed vault full of gold at the far right, and a few items."><img class="v-text" src="img/levels/rand5-text.webp" width="792" height="380" loading="lazy" alt="Random level C in the game's text symbols: eight rooms joined by corridors, three altars in one small room, one staircase up and two down, four traps (a dart trap, a pit, a squeaky board and a rust trap), a bat, a closed vault full of gold at the far right, and a few items."></div>
+<figcaption><b>Level C.</b> Three altars, three staircases, four traps (dart, pit, squeaky board, rust), a bat, and a sealed vault full of gold on the right. We take this one apart below.</figcaption>
+</figure>
+</div>
+<figcaption>Real levels from the real game (NetHack 5.0.0, commit 16ff591), drawn square by square from what the game reported: its own terrain codes and its own names for every trap, item and monster. The <b>Maps</b> switch at the top shows them as tiles or as the game's text symbols. On a phone, swipe a picture sideways to see all of it.</figcaption>
+</figure>
+
+<h4 id="pb-lv-steps">Taking level C apart, one step at a time</h4>
+<p>Each step removes or fixes one kind of thing and says why. Squares that changed in a step have a red frame.</p>
+<div class="lvs" id="lvs">
+<ol class="lvs-list">
+<li class="lvs-step" id="lvs-0" data-t="As generated">
+<p class="lvs-h"><span class="lvs-n">Step 0</span> The level as the game made it</p>
+<div class="lvimg"><img class="v-tiles" src="img/levels/step0-tiles.webp" width="1152" height="304" loading="lazy" alt="Level C as generated: rooms, corridors and doors, three altars, three staircases, four traps, a bat, a vault of gold and a few items."><img class="v-text" src="img/levels/step0-text.webp" width="792" height="380" loading="lazy" alt="Level C as generated: rooms, corridors and doors, three altars, three staircases, four traps, a bat, a vault of gold and a few items."></div>
+<p>Everything here was placed by the dice: the rooms, the corridors, every item, the traps, the bat. Start a new game and you get a different level.</p>
+</li>
+<li class="lvs-step" id="lvs-1" data-t="Monsters">
+<p class="lvs-h"><span class="lvs-n">Step 1</span> No monsters, no pet</p>
+<div class="lvimg"><img class="v-tiles" src="img/levels/step1-tiles.webp" width="1152" height="304" loading="lazy" alt="The same level with the bat removed; its square is framed in red."><img class="v-text" src="img/levels/step1-text.webp" width="792" height="380" loading="lazy" alt="The same level with the bat removed; its square is framed in red."></div>
+<p>The bat is gone. Monsters move and fight on their own, and a pet could swap places with the hero or slip between boulders. Our level script starts with the game's own switch <code>nh.debug_flags{mongen=false}</code>, which removes every monster and makes every later monster creation fail, and the hero starts without a pet.</p>
+</li>
+<li class="lvs-step" id="lvs-2" data-t="Items">
+<p class="lvs-h"><span class="lvs-n">Step 2</span> No random items or gold</p>
+<div class="lvimg"><img class="v-tiles" src="img/levels/step2-tiles.webp" width="1152" height="304" loading="lazy" alt="The level with all ten visible items and gold piles removed, each framed in red; the vault on the right is now empty."><img class="v-text" src="img/levels/step2-text.webp" width="792" height="380" loading="lazy" alt="The level with all ten visible items and gold piles removed, each framed in red; the vault on the right is now empty."></div>
+<p>Items give the hero new moves: a wand can dig through walls, a scroll can teleport, food and some rings change the hunger clock. Each would need its own check. Our levels allow only <b>boulders</b>, the <b>loadstone</b> in the hero's pack and, when hunger is on, <b>fortune cookies</b>, each placed by hand on an exact square. Even the random boulders go: ours are placed one by one.</p>
+</li>
+<li class="lvs-step" id="lvs-3" data-t="Furniture">
+<p class="lvs-h"><span class="lvs-n">Step 3</span> No altars, fountains, sinks or thrones</p>
+<div class="lvimg"><img class="v-tiles" src="img/levels/step3-tiles.webp" width="1152" height="304" loading="lazy" alt="The three altars have become plain floor, framed in red."><img class="v-text" src="img/levels/step3-text.webp" width="792" height="380" loading="lazy" alt="The three altars have become plain floor, framed in red."></div>
+<p>The three altars become floor. This kind of furniture gives extra actions with random results. A throne can grant a wish, and if the player picks the dice (the reading we use) it grants wishes again and again; a fountain can grant a wish too. Altars, sinks and graves are left out because nobody has checked what they could do here.</p>
+</li>
+<li class="lvs-step" id="lvs-4" data-t="Traps">
+<p class="lvs-h"><span class="lvs-n">Step 4</span> Only pits, holes and trapdoors</p>
+<div class="lvimg"><img class="v-tiles" src="img/levels/step4-tiles.webp" width="1152" height="304" loading="lazy" alt="The dart trap, squeaky board and rust trap are removed and framed in red; the pit stays."><img class="v-text" src="img/levels/step4-text.webp" width="792" height="380" loading="lazy" alt="The dart trap, squeaky board and rust trap are removed and framed in red; the pit stays."></div>
+<p>The dart trap, squeaky board and rust trap go; <b>the pit stays</b>. Pits, holes and trapdoors are exactly what a boulder puzzle needs: a boulder pushed in fills them. Other traps can put the hero to sleep again and again (which breaks the hunger clock) or do things nobody has checked line by line.</p>
+</li>
+<li class="lvs-step" id="lvs-5" data-t="Exits">
+<p class="lvs-h"><span class="lvs-n">Step 5</span> No way off the level</p>
+<div class="lvimg"><img class="v-tiles" src="img/levels/step5-tiles.webp" width="1152" height="304" loading="lazy" alt="The three staircases have become floor, framed in red. A new one-square pocket sealed by walls, top left, holds a single staircase that no one can reach."><img class="v-text" src="img/levels/step5-text.webp" width="792" height="380" loading="lazy" alt="The three staircases have become floor, framed in red. A new one-square pocket sealed by walls, top left, holds a single staircase that no one can reach."></div>
+<p>The question is about one level, so leaving it counts as losing. The staircases become floor. The game insists on one staircase on the first level, so every level we build has a sealed one-square pocket (top left) where that staircase must go. Nobody can reach it, so it adds no move. Without the pocket the staircase could land on the hero's start square, and then a lucky prayer could move the hero onto the goal.</p>
+</li>
+<li class="lvs-step" id="lvs-6" data-t="Hero">
+<p class="lvs-h"><span class="lvs-n">Step 6</span> One fixed hero with one cursed loadstone</p>
+<div class="lvimg"><img class="v-tiles" src="img/levels/step6-tiles.webp" width="1152" height="304" loading="lazy" alt="The same map; the hero's square is framed in red."><img class="v-text" src="img/levels/step6-text.webp" width="792" height="380" loading="lazy" alt="The same map; the hero's square is framed in red."></div>
+<p>The hero is always the same: a human Valkyrie with no pet, no spells and no special jumps. Her pack is emptied and gets exactly one <b>cursed loadstone</b>. It weighs 500 and a cursed one cannot be dropped, so she is far too heavy to squeeze onto a boulder's square.</p>
+</li>
+<li class="lvs-step" id="lvs-7" data-t="Hunger">
+<p class="lvs-h"><span class="lvs-n">Step 7</span> One switch for hunger</p>
+<div class="lvimg"><img class="v-tiles" src="img/levels/step7-tiles.webp" width="1152" height="304" loading="lazy" alt="The same map, unchanged: hunger is a game setting, not something on the map."><img class="v-text" src="img/levels/step7-text.webp" width="792" height="380" loading="lazy" alt="The same map, unchanged: hunger is a game setting, not something on the map."></div>
+<p>Nothing on the map changes. The script either switches hunger off with <code>nh.debug_flags{hunger=false}</code> or leaves it on, and that choice picks the result: hunger off, PSPACE-complete; hunger on, NP-complete (with one extra rule: a hero who starves loses).</p>
+</li>
+<li class="lvs-step" id="lvs-8" data-t="Sokoban flag">
+<p class="lvs-h"><span class="lvs-n">Step 8</span> The Sokoban flag, and a sealed pit to keep it on</p>
+<div class="lvimg"><img class="v-tiles" src="img/levels/step8-tiles.webp" width="1152" height="304" loading="lazy" alt="A second sealed one-square pocket, bottom left and framed in red, now holds a pit that no boulder can ever reach."><img class="v-text" src="img/levels/step8-text.webp" width="792" height="380" loading="lazy" alt="A second sealed one-square pocket, bottom left and framed in red, now holds a pit that no boulder can ever reach."></div>
+<p>The level gets the game's own <b>Sokoban flag</b> (it does not change how the level looks). With it, boulders move only in straight lines and the hero cannot cut a corner between a boulder and a wall (<a href="#pb-diag">see above</a>). The game turns the flag off by itself once every pit and hole is filled, so we add one pit that no boulder can ever reach (bottom left). The flag stays on for good.</p>
+</li>
+<li class="lvs-step" id="lvs-9" data-t="Our level">
+<p class="lvs-h"><span class="lvs-n">Step 9</span> No dice at all: every square written by hand</p>
+<div class="lvimg lv-small"><img class="v-tiles" src="img/levels/step9-tiles.webp" width="624" height="240" loading="lazy" alt="One of our levels, drawn with NetHack's tiles: walls and floor only, the hero on the left, two boulders, the goal square framed in yellow, a sealed pit on the right and a sealed staircase pocket at the far right."><img class="v-text" src="img/levels/step9-text.webp" width="429" height="300" loading="lazy" alt="One of our levels in text symbols: walls and floor only, the hero on the left, two boulders, the goal square framed in yellow, a sealed pit on the right and a sealed staircase pocket at the far right."></div>
+<p>Now the random rooms go too. A level in our problem is not made by the dice at all: it is a short script in NetHack's own level language that names every wall, every floor square and every boulder. This one is the puzzle from <a href="#pb-play">Section 2</a> (goal in yellow), with its sealed pit and staircase pocket. It ran in the real game. The levels our translator builds are the same kind, only much bigger (<a href="#pb-walk">Section 7</a>).</p>
+<pre class="code lvs-code"><code>nh.debug_flags({ mongen = false, hunger = false })
+des.level_flags("noflip", "sokoban", "noteleport")
+des.level_init({ style = "solidfill", fg = " " })
+des.map({ x = 1, y = 0, map = [[ ...walls and floor... ]] })
+des.object("boulder", 5, 1)
+des.object("boulder", 5, 2)
+des.trap("pit", 8, 2)                 -- sealed: keeps the Sokoban flag on
+des.levregion({ region = {12,1,12,1}, region_islev = true, type = "branch" })  -- stair pocket
+des.teleport_region({ region = {2,2,2,2}, region_islev = true, dir = "both" })  -- hero start
+u.clear_inventory()
+u.giveobj(obj.new("cursed loadstone"))</code></pre>
+<p class="lvs-note">Shortened from <code>tools/visual/levels/b_puzzle.lua</code>. The demo file also sets display flags for filming and retries until the hero starts on the right square; those lines are not part of the instance.</p>
+</li>
+</ol>
+</div>
+
+<h4 id="pb-lv-menu">The whole menu: what a level can contain, and what we keep</h4>
+<p>Every kind of thing an ordinary NetHack level can hold, sorted into groups. <span class="lvm-k kept">&#10003; kept</span> means our levels may use it; <span class="lvm-k cut">&#10005; removed</span> means our levels never contain it; <span class="lvm-k fixed">&#9679; fixed</span> means it is always set the same way. <span class="needs-js">Tap or click an item to see the reason.</span></p>
+<div class="lvm" id="lvm">
+<p class="lvm-bar needs-js"><button type="button" class="lvm-all" aria-pressed="false">Show all reasons</button></p>
+<div class="lvm-grid">
+<section class="lvm-g" aria-labelledby="lvm-h1"><h5 id="lvm-h1">Terrain</h5><ul>
+<li><button type="button" class="lvm-i kept"><span class="lvm-vh">kept: </span>solid rock<span class="lvm-why">Kept. Everything not drawn is rock.</span></button></li>
+<li><button type="button" class="lvm-i kept"><span class="lvm-vh">kept: </span>walls<span class="lvm-why">Kept. Walls and rock are the only obstacles our gadgets need.</span></button></li>
+<li><button type="button" class="lvm-i kept"><span class="lvm-vh">kept: </span>floor<span class="lvm-why">Kept.</span></button></li>
+<li><button type="button" class="lvm-i kept"><span class="lvm-vh">kept: </span>corridors<span class="lvm-why">Kept.</span></button></li>
+<li><button type="button" class="lvm-i kept"><span class="lvm-vh">kept: </span>doors<span class="lvm-why">Kept: allowed by the whitelist, though our constructions do not need them.</span></button></li>
+<li><button type="button" class="lvm-i kept"><span class="lvm-vh">kept: </span>water, lava<span class="lvm-why">Kept: allowed by the whitelist, though our constructions do not need them.</span></button></li>
+<li><button type="button" class="lvm-i cut"><span class="lvm-vh">removed: </span>trees<span class="lvm-why">Removed: kicking a tree can drop fruit, which is food and would change the hunger clock.</span></button></li>
+<li><button type="button" class="lvm-i cut"><span class="lvm-vh">removed: </span>ice, iron bars, graves, drawbridges<span class="lvm-why">Removed: not on the whitelist; their effects were never checked.</span></button></li>
+</ul></section>
+<section class="lvm-g" aria-labelledby="lvm-h2"><h5 id="lvm-h2">Furniture</h5><ul>
+<li><button type="button" class="lvm-i cut"><span class="lvm-vh">removed: </span>thrones<span class="lvm-why">Removed: sitting on a throne can grant a wish, and when the player picks the dice it grants wishes again and again (sit.c). A wish can bring any item.</span></button></li>
+<li><button type="button" class="lvm-i cut"><span class="lvm-vh">removed: </span>fountains<span class="lvm-why">Removed: a lucky drink can grant a wish, and a magic fountain can be used without ever drying up (fountain.c:279-284).</span></button></li>
+<li><button type="button" class="lvm-i cut"><span class="lvm-vh">removed: </span>sinks, altars<span class="lvm-why">Removed: extra actions with random results that were never checked.</span></button></li>
+<li><button type="button" class="lvm-i fixed"><span class="lvm-vh">fixed: </span>stairs<span class="lvm-why">Fixed: leaving the level loses. The one staircase the game insists on goes into a sealed one-square pocket that nobody can reach.</span></button></li>
+</ul></section>
+<section class="lvm-g" aria-labelledby="lvm-h3"><h5 id="lvm-h3">Traps</h5><ul>
+<li><button type="button" class="lvm-i kept"><span class="lvm-vh">kept: </span>pits<span class="lvm-why">Kept: a boulder pushed in fills a pit. One sealed pit keeps the Sokoban flag on.</span></button></li>
+<li><button type="button" class="lvm-i kept"><span class="lvm-vh">kept: </span>holes, trapdoors<span class="lvm-why">Kept: a boulder pushed in plugs them; a hero who falls through leaves the level and loses.</span></button></li>
+<li><button type="button" class="lvm-i cut"><span class="lvm-vh">removed: </span>sleeping gas<span class="lvm-why">Removed: it can put the hero to sleep again and again, which breaks the hunger clock.</span></button></li>
+<li><button type="button" class="lvm-i cut"><span class="lvm-vh">removed: </span>teleport traps, level teleporters, magic portals<span class="lvm-why">Removed: they move the hero elsewhere. (The work-in-progress EXPTIME page studies one carefully restricted teleport trap.)</span></button></li>
+<li><button type="button" class="lvm-i cut"><span class="lvm-vh">removed: </span>all other traps<span class="lvm-why">Removed: darts, rolling boulders, land mines, polymorph, fire, rust, webs and the rest add effects that were never checked.</span></button></li>
+</ul></section>
+<section class="lvm-g" aria-labelledby="lvm-h4"><h5 id="lvm-h4">Items</h5><ul>
+<li><button type="button" class="lvm-i kept"><span class="lvm-vh">kept: </span>boulders<span class="lvm-why">Kept: each placed by hand on an exact square, one per line of the script.</span></button></li>
+<li><button type="button" class="lvm-i kept"><span class="lvm-vh">kept: </span>fortune cookies (hunger on)<span class="lvm-why">Kept only when hunger is on: a fixed bit of food, placed by hand.</span></button></li>
+<li><button type="button" class="lvm-i fixed"><span class="lvm-vh">fixed: </span>loadstone<span class="lvm-why">Fixed: exactly one, cursed, in the hero's pack.</span></button></li>
+<li><button type="button" class="lvm-i cut"><span class="lvm-vh">removed: </span>gold<span class="lvm-why">Removed: like every item not named above, it is not on the whitelist.</span></button></li>
+<li><button type="button" class="lvm-i cut"><span class="lvm-vh">removed: </span>wands, scrolls, potions, spellbooks<span class="lvm-why">Removed: they add moves (digging, teleporting) or sleep.</span></button></li>
+<li><button type="button" class="lvm-i cut"><span class="lvm-vh">removed: </span>rings, amulets<span class="lvm-why">Removed: a ring of slow digestion stops hunger; an amulet of life saving gives a second life.</span></button></li>
+<li><button type="button" class="lvm-i cut"><span class="lvm-vh">removed: </span>other food<span class="lvm-why">Removed: most food changes the hunger clock in ways we did not count.</span></button></li>
+<li><button type="button" class="lvm-i cut"><span class="lvm-vh">removed: </span>weapons, armor, tools, gems, containers<span class="lvm-why">Removed: each adds moves or objects that were never checked.</span></button></li>
+</ul></section>
+<section class="lvm-g" aria-labelledby="lvm-h5"><h5 id="lvm-h5">Monsters</h5><ul>
+<li><button type="button" class="lvm-i cut"><span class="lvm-vh">removed: </span>all monsters<span class="lvm-why">Removed: mongen=false removes them and blocks new ones. Monsters move and fight on their own.</span></button></li>
+<li><button type="button" class="lvm-i cut"><span class="lvm-vh">removed: </span>shopkeepers, priests, vault guards<span class="lvm-why">Removed: they are monsters too, and come with shops, temples and vaults.</span></button></li>
+<li><button type="button" class="lvm-i cut"><span class="lvm-vh">removed: </span>pet<span class="lvm-why">Removed (option pettype:none): the starting kitten survives level setup and could swap places with the hero or slip diagonally between boulders.</span></button></li>
+</ul></section>
+<section class="lvm-g" aria-labelledby="lvm-h6"><h5 id="lvm-h6">Level flags and regions</h5><ul>
+<li><button type="button" class="lvm-i fixed"><span class="lvm-vh">fixed: </span>Sokoban flag: on<span class="lvm-why">Fixed: no diagonal pushes, no squeezing between boulders and walls.</span></button></li>
+<li><button type="button" class="lvm-i fixed"><span class="lvm-vh">fixed: </span>no random mirroring<span class="lvm-why">Fixed (flag noflip): otherwise the game may mirror the map at random while the goal square stays put.</span></button></li>
+<li><button type="button" class="lvm-i kept"><span class="lvm-vh">kept: </span>lit areas, undiggable walls<span class="lvm-why">Kept: they only light squares or stop digging.</span></button></li>
+<li><button type="button" class="lvm-i cut"><span class="lvm-vh">removed: </span>shops, temples, vaults, zoos<span class="lvm-why">Removed: these special rooms come with monsters and items.</span></button></li>
+</ul></section>
+<section class="lvm-g" aria-labelledby="lvm-h7"><h5 id="lvm-h7">Hero</h5><ul>
+<li><button type="button" class="lvm-i fixed"><span class="lvm-vh">fixed: </span>human Valkyrie<span class="lvm-why">Fixed: no spells that move boulders, no #jump, no extra speed at the start.</span></button></li>
+<li><button type="button" class="lvm-i fixed"><span class="lvm-vh">fixed: </span>pack: one cursed loadstone<span class="lvm-why">Fixed: heavy (500) and cannot be dropped, so the hero can never squeeze onto a boulder.</span></button></li>
+<li><button type="button" class="lvm-i fixed"><span class="lvm-vh">fixed: </span>hunger: off or on<span class="lvm-why">Fixed per result: off gives PSPACE-complete, on gives NP-complete.</span></button></li>
+<li><button type="button" class="lvm-i fixed"><span class="lvm-vh">fixed: </span>luck, moon, date, time<span class="lvm-why">Fixed: Luck 0, no full or new moon, not Friday the 13th, not night, no bones files. Prayer depends on luck.</span></button></li>
+</ul></section>
+<section class="lvm-g" aria-labelledby="lvm-h8"><h5 id="lvm-h8">Game mode and script</h5><ul>
+<li><button type="button" class="lvm-i fixed"><span class="lvm-vh">fixed: </span>normal play<span class="lvm-why">Fixed: any normal command is allowed. Not explore mode.</span></button></li>
+<li><button type="button" class="lvm-i cut"><span class="lvm-vh">removed: </span>wizard (debug) mode<span class="lvm-why">Removed: in wizard mode some teleports ask the player where to go (teleport.c:872-873).</span></button></li>
+<li><button type="button" class="lvm-i fixed"><span class="lvm-vh">fixed: </span>dice<span class="lvm-why">Fixed reading: the player picks every die roll ("can a lucky run win?"). Our hardness levels give the same answer under any dice.</span></button></li>
+<li><button type="button" class="lvm-i kept"><span class="lvm-vh">kept: </span>straight-line script<span class="lvm-why">Kept: every boulder and trap has its own line, so the script grows with the level.</span></button></li>
+<li><button type="button" class="lvm-i cut"><span class="lvm-vh">removed: </span>loops, functions<span class="lvm-why">Removed: a short loop could build a huge level, and the input size would lie.</span></button></li>
+<li><button type="button" class="lvm-i cut"><span class="lvm-vh">removed: </span>random placement<span class="lvm-why">Removed: the level would depend on the dice.</span></button></li>
+<li><button type="button" class="lvm-i cut"><span class="lvm-vh">removed: </span>counts above 1<span class="lvm-why">Removed: the game creates boulders one at a time in a loop (sp_lev.c:3732), so one line could ask for 2<sup>60</sup> of them.</span></button></li>
+</ul></section>
+</div>
+</div>
+<p class="pb-honest"><b>What this means for the results:</b> they are about levels written in NetHack's own level language with exactly these choices. Ordinary levels without the Sokoban flag, where boulders can be pushed diagonally and the hero can slip diagonally past them, are an open question: we have no result for them.</p>
+<p class="pb-links"><button type="button" class="pb-go lvm-go" data-goto="3" data-anchor="tab-whitelist">The exact list, with the game's source lines (Full paper, Table 2)</button></p>
+<h3 id="pb-hard">4. What does "hard" mean?</h3>
 <p>In computer science, "hard" is not about how a puzzle feels. It is about <b>how the work grows</b> when the puzzle gets bigger. Three families, or <i>classes</i>, matter here:</p>
 <div class="pb-cls">
 <div class="pb-c p"><b>P: easy to solve</b><p>There is a method whose work grows gently with size: double the size, and the work goes up by a fixed factor, not by an explosion. <i>Example:</i> sorting a list of names, or finding the shortest route on a map.</p></div>
@@ -190,7 +350,7 @@ if (dx &amp;&amp; dy &amp;&amp; bad_rock(u.ux, y) &amp;&amp; bad_rock(x, u.uy)) 
 <p><b>A reduction is a translator.</b> It is a quick, mechanical way to turn any puzzle of one kind into a puzzle of another kind with the same answer. If you have a translator from sudoku into NetHack levels, then NetHack is at least as hard as sudoku.</p>
 <p><b>The big open question.</b> Is P the same as NP? In other words: whenever an answer is easy to check, is it also easy to find? Nobody knows. It is one of the seven Millennium Prize Problems of the Clay Mathematics Institute, with a US$1,000,000 prize for a correct solution, and it is still unsolved. Whether P equals PSPACE is also unknown.</p>
 
-<h3 id="pb-found">4. What we found</h3>
+<h3 id="pb-found">5. What we found</h3>
 <div class="pb-res">
 <div class="pb-card">
 <svg class="pb-ico" viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="26" r="16" class="pb-bd"/><path d="M14,22a11,11 0 0 1 8,-7" class="pb-crack"/></svg>
@@ -224,7 +384,7 @@ if (dx &amp;&amp; dy &amp;&amp; bad_rock(u.ux, y) &amp;&amp; bad_rock(x, u.uy)) 
 <figcaption><b>Hunger is a clock.</b> Every step uses food. Fortune cookies add a little; prayer can refill the stomach, but each prayer makes the next one wait longer. Eventually food runs out before you may pray again, so every game ends after a limited number of steps. Simplified picture; the paper has the exact numbers.</figcaption>
 </figure>
 
-<h3 id="pb-how">5. How do you prove a game is hard?</h3>
+<h3 id="pb-how">6. How do you prove a game is hard?</h3>
 <p>You cannot prove hardness by failing to find a fast method; maybe you just did not look hard enough. Instead you build a <b>translator</b>. Take a problem already known to be hard, here a kind of logic puzzle called SAT, and show how to turn any such puzzle into a NetHack level.</p>
 <p>A SAT puzzle is a list of on/off switches (<i>x1</i>, <i>x2</i>, ...) and some rules, each saying "at least one of these must hold". For example: <i>x1 or x2</i>, and <i>not x1 or not x2</i>. In plain words: exactly one of the two switches is on.</p>
 <figure class="fig pb-fig pb-tr">
@@ -238,7 +398,7 @@ if (dx &amp;&amp; dy &amp;&amp; bad_rock(u.ux, y) &amp;&amp; bad_rock(x, u.uy)) 
 </figure>
 <p>That gives the key argument: <b>if you could beat every such level quickly, you could solve every logic puzzle quickly</b>, and that would settle P versus NP. The hunger-off result uses the same idea, translating a known PSPACE-complete block-pushing puzzle called Push-1F into NetHack boulders.</p>
 
-<h3 id="pb-walk">6. Walk a real level</h3>
+<h3 id="pb-walk">7. Walk a real level</h3>
 <p>This is the level the translator builds for the puzzle above. It is big; the small map on the side shows where you are.</p>
 <ul class="pb-ul">
 <li>You start at the left end of a long corridor. At each switch the corridor splits: <b>top branch = off (false)</b>, <b>bottom branch = on (true)</b>. Pick one; they join again.</li>
@@ -266,7 +426,7 @@ if (dx &amp;&amp; dy &amp;&amp; bad_rock(u.ux, y) &amp;&amp; bad_rock(x, u.uy)) 
 </div>
 <p class="pb-links"><a href="engine.html">Try your own formula: the reduction engine</a> <a href="arena.html">More levels, including impossible ones: the arena</a></p>
 
-<h3 id="pb-why">7. Why does this matter?</h3>
+<h3 id="pb-why">8. Why does this matter?</h3>
 <ul class="pb-ul">
 <li><b>No clever shortcut is likely.</b> Unless P equals NP, which most experts doubt, no program can play these NetHack levels perfectly and quickly on every level. Game AIs have to settle for good guesses.</li>
 <li><b>Games are a fun lab for serious math.</b> The same classes describe scheduling, delivery routes, packing, and chip design. Puzzles are a friendly way to study them.</li>
@@ -274,12 +434,12 @@ if (dx &amp;&amp; dy &amp;&amp; bad_rock(u.ux, y) &amp;&amp; bad_rock(x, u.uy)) 
 <li><b>It is new, as far as we found.</b> Many games have such results (Sokoban, Tetris, Super Mario Bros.), but we found no earlier one for NetHack.</li>
 </ul>
 
-<h3 id="pb-gloss">8. Tiny glossary</h3>
+<h3 id="pb-gloss">9. Tiny glossary</h3>
 <dl class="pb-gl">
 <dt>Algorithm</dt><dd>A step-by-step method a computer follows, like a recipe.</dd>
 <dt>Polynomial</dt><dd>Work that grows gently with size: double the input, and the work goes up by a fixed factor.</dd>
 <dt>Exponential</dt><dd>Work that explodes: each extra bit of size multiplies the work, so it soon outruns any computer.</dd>
-<dt>P, NP, PSPACE</dt><dd>Easy to solve; easy to check; solvable with modest memory but maybe an astronomically long plan (Section 3).</dd>
+<dt>P, NP, PSPACE</dt><dd>Easy to solve; easy to check; solvable with modest memory but maybe an astronomically long plan (Section 4).</dd>
 <dt>Complete</dt><dd>The hardest problems in a class: a fast method for one would give a fast method for all of them.</dd>
 <dt>Reduction</dt><dd>A translator that turns one kind of puzzle into another with the same answer.</dd>
 <dt>SAT</dt><dd>A logic puzzle: set on/off switches so that every rule in a list holds. The classic NP-complete problem.</dd>
@@ -430,7 +590,7 @@ if (dx &amp;&amp; dy &amp;&amp; bad_rock(u.ux, y) &amp;&amp; bad_rock(x, u.uy)) 
 <tr id="n-p1f"><td>(<i>G</i>, <i>B</i><sub>0</sub>, <i>s</i>, <i>g</i>)</td><td>Push-1F instance: <i>G</i> a finite set of non-fixed cells (all others are fixed blocks), <i>B</i><sub>0</sub> &sube; <i>G</i> the movable blocks, start <i>s</i>, goal <i>g</i>.</td><td>The enclosed-board form, which is what a walled NetHack level can express; Lemma 4.7 connects it to the published problem.</td><td>(a, b, T, s, g); Lean <code>Board</code></td><td><a href="#push1f">3.2</a></td></tr>
 <tr id="n-nh"><td>nhMove, NHStep</td><td>One 8-direction hero step on the projected state, transcribed from <code>hack.c</code>; NHStep = some key gives the step.</td><td>The object of the Lean proof.</td><td>same</td><td><a href="#lean">3.3</a></td></tr>
 <tr id="n-load"><td>cursed loadstone</td><td>The hero's only item: a 500-weight stone that a curse makes impossible to drop or throw.</td><td>Any heavy item stops squeezing, but the hero could drop it; the curse keeps it, and nothing reachable lifts the curse.</td><td>&mdash;</td><td><a href="#rules">3.1</a></td></tr>
-<tr id="n-wc"><td>wc</td><td>Weight capacity 25(Str + Con) + 50, capped at 1000.</td><td>With Str + Con &ge; 20 it is &ge; 550 &gt; 500, so the loadstone leaves the hero unencumbered.</td><td>wc</td><td><a href="#instances">2.2</a></td></tr>
+<tr id="n-wc"><td>wc</td><td>Weight capacity 25(Str + Con) + 50, capped at 1000.</td><td>Str + Con &ge; 16 at the start (&ge; 20 unless a 1-in-20 setup roll lowers them), so wc &ge; 450: with the 500 loadstone the hero is unencumbered or, after an unlucky roll, Burdened (slower, never Stressed).</td><td>wc</td><td><a href="#instances">2.2</a></td></tr>
 <tr id="n-sent"><td>sentinel pit</td><td>A pit sealed in rock (8 rock neighbours) that no boulder can reach.</td><td>The Sokoban flag switches itself off when the last non-hero pit or hole disappears; the sentinel never disappears.</td><td>sentinel</td><td><a href="#rules">3.1</a></td></tr>
 <tr id="n-Mv"><td>Mv1&ndash;Mv4, CR</td><td>Movement facts with holes (Section 3.1) and the corridor rule CR: every hole lies in a straight 1-wide corridor with rock on both sides.</td><td>A hole is not "bad rock", so without CR a diagonal step could cut a corner over a hole.</td><td>F1&ndash;F4, rule R</td><td><a href="#rules">3.1</a></td></tr>
 <tr id="n-f"><td><i>f</i>, <i>f</i><sub>ON</sub></td><td>The Push-1F reduction; <i>f</i><sub>ON</sub> is the same map with hunger left on.</td><td>&mdash;</td><td>f, f_ON</td><td><a href="#off-red">4.2</a></td></tr>
@@ -490,6 +650,20 @@ if (dx &amp;&amp; dy &amp;&amp; bad_rock(u.ux, y) &amp;&amp; bad_rock(x, u.uy)) 
 <div class="xpl" data-dm="2">
 <p>An instance is a level script plus a target cell <i>g</i>. The script is a straight-line Lua program built from a short <button class="t" data-t="whitelist">whitelist</button> (map, boulders, loadstones, fortune cookies, a few traps) and runs on a fixed hero: a human female Valkyrie with no pet. The question is whether she can end a turn alive on <i>g</i>. There are two languages: L<sub>OFF</sub> with hunger switched off, and L<sub>ON</sub> with hunger left as in the game.</p>
 </div>
+<div data-dm="1" data-dmax="2" class="tbl narrow lvm-sum" id="tab-menu">
+<table>
+<caption>What an instance may contain: a summary of Table 2. <button type="button" class="pb-go lvm-go" data-goto="0" data-anchor="pb-levels">See it step by step on a real random level</button></caption>
+<thead><tr><th>Group</th><th>Kept</th><th>Fixed</th><th>Removed</th></tr></thead>
+<tbody>
+<tr><td>Terrain</td><td>rock, walls, floor, corridors, doors, water, lava</td><td>stairs: one, in a sealed pocket</td><td>fountains, thrones, sinks, altars, trees, other terrain</td></tr>
+<tr><td>Traps</td><td>pit, hole, trapdoor</td><td>one sealed pit</td><td>all others</td></tr>
+<tr><td>Objects</td><td>boulders (one per call); fortune cookies in L<sub>ON</sub></td><td>one cursed loadstone in the pack</td><td>everything else, gold included</td></tr>
+<tr><td>Monsters</td><td>&mdash;</td><td>none (<code>mongen=false</code>, no pet)</td><td>all</td></tr>
+<tr><td>Level</td><td>lit regions, undiggable walls</td><td>flags <code>sokoban</code>, <code>noflip</code>; hunger on or off</td><td>special rooms (shops, temples, vaults)</td></tr>
+<tr><td>Play</td><td>any non-wizard command</td><td>human Valkyrie; Luck 0; dice read as R2</td><td>wizard and explore mode</td></tr>
+<tr><td>Script</td><td>straight-line calls with explicit coordinates</td><td>&mdash;</td><td>loops, functions, random placement, quantity &gt; 1</td></tr>
+</tbody></table>
+</div>
 <div data-dm="3" class="thm def" id="def-instance"><p><span class="thm-h">Definition 2.2</span><span class="nm">(instance and question)</span>. An instance is <i>I</i> = (<i>w</i>, <i>h</i>, <a class="g" href="#n-S"><i>S</i></a>, <a class="g" href="#n-g"><i>g</i></a>), where <i>S</i> is a straight-line Lua script using only the calls, objects, traps and terrain of the whitelist <a class="g" href="#n-W"><i>W</i></a> (Table 2) with explicit coordinates, and <i>g</i> is a cell. The instance is run as follows (Figure 2):</p>
 <ol class="tight">
 <li><code>newgame()</code> with a fixed hero template: human female lawful Valkyrie, option <code>pettype:none</code>;</li>
@@ -533,19 +707,24 @@ if (dx &amp;&amp; dy &amp;&amp; bad_rock(u.ux, y) &amp;&amp; bad_rock(x, u.uy)) 
 <figcaption><span class="fn">Figure 2.</span> The problem. Read left to right: the input is a level script and a target; the setup is fixed and identical for every instance; the play is free; the acceptance condition is checked at the start of each player turn. Everything in the second box is part of the definition, not of the input. The bottom strip is the only place where the program differs from the released game.</figcaption>
 </figure>
 
-<p data-dm="3"><b>Why this hero.</b> The template must be a non-spellcaster (no spells to move boulders or the hero), not a Knight (no <code>#jump</code>), and without intrinsic speed at experience level 1 (extra moves complicate the per-tick accounting); the Valkyrie gets speed only at level 7 and never gains a level here, since there is nothing to kill. Her base Strength and Constitution are 10 each and character generation only adds points, so Str + Con &ge; 20 and the <a class="g" href="#n-wc">weight capacity</a> wc = 25(Str + Con) + 50 &ge; 550 exceeds the 500 of the loadstone: the hero is never encumbered by it <span class="chip strong">STRONG</span>. <code>pettype:none</code> is needed because the starting kitten survives <code>des.reset_level</code> (it is kept with the hero and restored by finalization) and could displace the hero or squeeze diagonally between boulders; review 2 found this and rated it fatal until repaired [<a href="#r-rev2">P5</a>].</p>
+<p data-dm="3"><b>Why this hero.</b> The template must be a non-spellcaster (no spells to move boulders or the hero), not a Knight (no <code>#jump</code>), and without intrinsic speed at experience level 1 (extra moves complicate the per-tick accounting); the Valkyrie gets speed only at level 7 and never gains a level here, since there is nothing to kill. Her base Strength and Constitution start at 10 each and <code>init_attr</code> only adds points, but <code>vary_init_attr</code> then lowers each attribute by up to 2 with probability 1/20 (<span class="src">attrib.c:763-776</span>, <span class="src">u_init.c:1390-1391</span>). So Str + Con &ge; 16 and wc &ge; 450. Usually wc &ge; 550 and the 500-weight loadstone leaves the hero unencumbered; after an unlucky setup roll he may be Burdened (speed 12 &rarr; 9), never Stressed. For the hunger-off results this changes only time <span class="chip strong">STRONG</span>. For the hunger-on result under R2 the lucky setup is chosen; whether NP-hardness also holds for R1, R3, R4 (answer-level DET) with a Burdened start is <span class="chip open">OPEN</span>: the hunger budget of Section 5 assumes speed 12 (found 2026-10-30, spec Rev. 4 item 12).. <code>pettype:none</code> is needed because the starting kitten survives <code>des.reset_level</code> (it is kept with the hero and restored by finalization) and could displace the hero or squeeze diagonally between boulders; review 2 found this and rated it fatal until repaired [<a href="#r-rev2">P5</a>].</p>
 <p data-dm="3"><b>Why this run order.</b> In a real <code>newgame()</code> the level is built before the starting kit is handed out (<span class="src">allmain.c:807-815</span>), so a script run as the first level would have its inventory overwritten by the Valkyrie's spear, dagger, shield and food ration. Running <i>S</i> afterwards, inside the test harness, keeps the script in control.</p>
 <p data-dm="3"><b>Mandatory prefix.</b> Every script starts with <code>nh.debug_flags{mongen=false}</code> (removes every monster and makes every monster creation fail, <span class="src">makemon.c:1168</span>) and <code>u.clear_inventory()</code>; in L<sub>OFF</sub> it also contains <code>hunger=false</code>. The level flags include <code>noflip</code>, because finalization otherwise mirrors the map at random while <i>g</i> stays fixed. External inputs are fixed: Luck 0, god anger 0, no full or new moon, not Friday the 13th, not night, no bones files. Luck matters because prayer outcomes depend on it (Section 4.2).</p>
 
-<div data-dm="3" class="tbl">
+<div data-dm="3" class="tbl" id="tab-whitelist">
 <table>
-<caption><span class="fn">Table 2.</span> The whitelist <i>W</i> (phase-2 specification, Revisions 1&ndash;3 [<a href="#r-spec">P4</a>]) and why each excluded item is excluded.</caption>
+<caption><span class="fn">Table 2.</span> The whitelist <i>W</i> (phase-2 specification, Revisions 1&ndash;4 [<a href="#r-spec">P4</a>]) and why each excluded item is excluded. The last five rows fix the setup around the script. The For-everyone version walks a real random level through these choices (<button type="button" class="pb-go lvm-go" data-goto="0" data-anchor="pb-levels">step by step</button>).</caption>
 <thead><tr><th>Kind</th><th>Allowed</th><th>Excluded, and what it would break</th></tr></thead>
 <tbody>
 <tr><td>Script calls</td><td><code>des.level_init</code> (solid fill only), <code>des.level_flags</code>, <code>des.map</code>, <code>des.terrain</code>, <code>des.object</code>, <code>des.trap</code>, <code>des.region</code> (lit only), <code>des.teleport_region</code>, <code>des.levregion{type="branch"}</code> (Rev. 3), <code>des.non_diggable</code>, <code>des.non_passwall</code>, <code>u.clear_inventory</code>, <code>u.giveobj</code>, <code>nh.debug_flags</code></td><td>loops and functions (a short script could build an exponential level); random placement or random fill (the instance would depend on the dice)</td></tr>
 <tr><td>Objects</td><td>boulder and loadstone, quantity 1 each; fortune cookie in L<sub>ON</sub> (quantity in unary)</td><td>quantity &gt; 1 on a non-mergeable object: <code>des.object</code> loops once per unit (<span class="src">sp_lev.c:3732</span>), so one line could create 2<sup>60</sup> boulders. Rings of slow digestion and white dragon scales stop hunger; amulets of life saving add a refill; wands, scrolls, spellbooks, potions, containers and most food add moves, objects or sleep</td></tr>
 <tr><td>Traps</td><td>pit, hole, trapdoor</td><td>sleeping gas (sleep every tick), polymorph, fire, dart, magic, spiked pit, teleport and others: each either stops the hunger clock or is unaudited</td></tr>
-<tr><td>Terrain</td><td>rock, walls, floor, corridors, doors, water, lava</td><td>thrones (unbounded wishes under R2, Section 6.3), fountains (a magic fountain feeds without drying up, <span class="src">fountain.c:279-284</span>), sinks, altars, trees</td></tr>
+<tr><td>Terrain</td><td>rock, walls, floor, corridors, doors, water, lava</td><td>thrones (unbounded wishes under R2, Section 6.3), fountains (a magic fountain feeds without drying up, <span class="src">fountain.c:279-284</span>), sinks, altars, trees (Rev. 1 item 3); graves, ice, iron bars and drawbridges are not on the list and were not audited</td></tr>
+<tr><td>Level flags</td><td><code>noflip</code> (mandatory, Rev. 1 item 2), <code>sokoban</code> (Section 3.1); <code>noteleport</code>, <code>hardfloor</code>, <code>solidify</code> allowed</td><td>without <code>noflip</code>, finalization mirrors the map at random while <i>g</i> stays fixed (<span class="src">sp_lev.c:967</span>, <span class="src">sp_lev.c:6482</span>; flag at <span class="src">sp_lev.c:3804</span>). The EXPTIME draft forbids <code>noteleport</code> (Rev. 4 item 10a)</td></tr>
+<tr><td>Monsters</td><td>none: mandatory prefix <code>nh.debug_flags{mongen=false}</code> (clears the monster list, <span class="src">nhlua.c:1473-1481</span>; later creation fails, <span class="src">makemon.c:1168</span>) and option <code>pettype:none</code> (<span class="src">dog.c:225</span>)</td><td>every monster. The starting pet survives <code>des.reset_level</code> (<span class="src">wizcmds.c:116</span>), is restored by finalization (<span class="src">cmd.c:1047</span>), and can displace the hero and squeeze Sokoban diagonals (Rev. 2 item 6)</td></tr>
+<tr><td>Hero</td><td>human female lawful Valkyrie; <code>u.clear_inventory()</code> then <code>u.giveobj</code> of one cursed loadstone (Rev. 1 item 2)</td><td>spellcasters (spells move boulders or the hero), Knights (<code>#jump</code>), roles with intrinsic speed at level 1 (Section 2.2)</td></tr>
+<tr><td>Stairs and regions</td><td><code>des.region</code> (lit only), one <code>des.teleport_region</code> for the start <i>s</i>, <code>des.levregion{type="branch"}</code> into a sealed one-cell pocket (Rev. 3 item 8, <span class="src">sp_lev.c:5475-5479</span>), <code>des.non_diggable</code>, <code>des.non_passwall</code></td><td>a branch staircase on a random cell can take <i>s</i>, leaving the hero at a stale position that a lucky prayer repairs by teleport (<span class="src">sp_lev.c:6046-6061</span>, <span class="src">pray.c:461-465</span>; Section 4.4). Leaving the level loses</td></tr>
+<tr><td>Play</td><td>any command of normal play except <code>#exploremode</code>; Luck 0, god anger 0, no full or new moon, not Friday the 13th, not night, no bones</td><td>wizard mode: a teleport then asks the player for the destination (<span class="src">teleport.c:872-873</span>; Rev. 4 item 11)</td></tr>
 </tbody></table>
 </div>
 
@@ -1852,7 +2031,7 @@ nh.debug_flags({ mongen = false, hunger = false });</code></pre>
 <!-- ======================================================= 8 -->
 <section id="open" class="lv">
 <div class="sec-head"><h2><span class="sn">8</span>Limitations and open problems</h2><div class="seg sm local" role="group" aria-label="Reading depth for 8 Limitations and open problems"><button type="button" data-d="1">Overview</button><button type="button" data-d="2">Explained</button><button type="button" data-d="3">Full</button></div></div>
-<p class="oneline" data-dm="1">The weakest points: one check against the Push-1F figures, a source-problem statement read only in restatements, four unfinished checker runs, and no full reduction output run in the game.</p>
+<p class="oneline" data-dm="1">The weakest points: one check against the Push-1F figures, a source-problem statement read only in restatements, four unfinished checker runs, and no full reduction output run in the game. Levels without the Sokoban flag are an open problem.</p>
 <p data-dm="2">Weakest points first.</p>
 <ol data-dm="2">
 <li><b>Lemma 4.7(c).</b> Check against Ani et al.'s Figures 32&ndash;37 that no block leaves its gadget in the intended solution. Until then the YES direction of PSPACE-hardness for the published instances rests on the gadgets' design.</li>
@@ -1865,7 +2044,7 @@ nh.debug_flags({ mongen = false, hunger = false });</code></pre>
 <li><b>Lean scope.</b> Only the movement step is formal; the projection and invariants I1&ndash;I9 are trusted.</li>
 <li><b>Model assumptions.</b> Rule S, fixed external inputs, and the whitelist are choices; Section 6 shows how the answer moves without them.</li>
 </ol>
-<p data-dm="2"><b>Open problems.</b> The exact class under R3 (NP or PSPACE-complete?). Whether unrestricted objects leave PSPACE, and whether anything is EXPTIME-hard. Whether walls and boulders alone admit a crossover (which would remove holes from the NP reduction). Whether unbounded integers make the problem undecidable.</p>
+<p data-dm="2"><b>Open problems.</b> The exact class under R3 (NP or PSPACE-complete?). Whether unrestricted objects leave PSPACE, and whether anything is EXPTIME-hard. Whether walls and boulders alone admit a crossover (which would remove holes from the NP reduction). Whether unbounded integers make the problem undecidable. <b>Plain levels without the Sokoban flag:</b> every instance here carries the flag; without it the hero may push boulders diagonally, step diagonally past a boulder between it and a wall, and, when carrying little, squeeze onto a boulder's square, so the push model of Section 3 no longer applies. We know no result for such levels.</p>
 </section>
 
 <!-- ======================================================= REFS -->
@@ -2408,6 +2587,8 @@ $$(".pb-go").forEach(function (b) {
   b.addEventListener("click", function () {
     var d = b.getAttribute("data-goto");
     setGlobal(d, true);
+    var an = b.getAttribute("data-anchor");
+    if (an) { reveal(an, true); return; }
     var t = document.getElementById(d === "0" ? "public" : "abstract");
     if (t) { t.scrollIntoView({ block: "start" }); }
   });
@@ -2594,5 +2775,6 @@ if (location.hash) {
 }
 })();
 </script>
+<script src="levels.js?v=20261030" defer></script>
 </body>
 </html>
