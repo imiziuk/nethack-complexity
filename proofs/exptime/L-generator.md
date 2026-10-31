@@ -45,8 +45,8 @@ clauses, both first movers), the whole level and checks it. Pipeline:
    t become junction tiles (combs); the bidirectional button link is kept inside an "SCD compound" tile (v2 SCD
    tile + a junction on O with ports Oin, Oout), so no bidirectional corridor ever meets a crossover. Tile order:
    DFS + barycentre sweeps + adjacent swaps minimizing interleaving pairs; crossings = interleaving pairs exactly.
-4. **Concrete blocks.** Macro pitch P = 469 (the 453 × 432 crossover fits under every flip with its ports on the
-   block midlines). Block types: empty, V, H, two corners, crossover (`build/xover/crossover.txt`, flipped
+4. **Concrete blocks.** Macro pitch P = 597 since review 6 (§9; r5: P = 469 for the 453 × 432 crossover); the 569 × 550 crossover fits under every flip with its ports on the
+   block midlines. Block types: empty, V, H, two corners, crossover (`build/xover/crossover.txt`, flipped
    horizontally if the track runs right→left, vertically if the column runs bottom→top), and per tile a k·P-wide
    block (v2 SCD tile under symmetry 7 = ports O, I, J on top, open or closed boulders; v2 diode tile; coin tile;
    comb) with nested L-shaped stubs to the column midlines. The level is the macro grid of these blocks; it is not
@@ -175,7 +175,7 @@ ALL AS EXPECTED (same c1 61,112 moves, same c2 counts). L_gen uses leg g-sides i
    boulders (estimate); D_game handles ~10⁶ positions of a few dozen boulders. Not attempted.
 5. **Router success is empirical** (search with retries), not a theorem: it is VERIFIED for the block types it
    produced (every crossover flip/parity, every tile block); a different crossover map could need re-running.
-6. Sizes are those of this generator (bus layout, P = 469, one crossover = 453 × 432); a hand layout would be far
+6. Sizes are those of this generator (bus layout, P = 469, one crossover = 453 × 432; since §9: P = 597, 569 × 550); a hand layout would be far
    smaller. Polynomial bound: crossovers ≤ (#edges)², every crossover a constant-size block, check-path
    machinery O(#blocks · P) per lane plus O(1) per G′.
 
@@ -185,3 +185,88 @@ ALL AS EXPECTED (same c1 61,112 moves, same c2 counts). L_gen uses leg g-sides i
 `build/lgen/xtemplate_*.json`) · `python L_gen.py --run 20 3` (20 instances with cached templates, ~3 min; writes
 `inst3_*.json/.txt`, `summary_3.json`) · `python L_gen.py --tile` (tile-block templates) · S1/NC1 on 300 instances:
 `L_gen.netlist` + `solve_net` + `noforce_winner` (seed 11, a few minutes).
+
+## 9. Review-6 repairs (2026-10-31): drawn check walks, GX rule, scaled SCD tile, L_e2e
+
+**What changed in `Router` (default; the old behaviour is kept only behind env flags for the positive controls).**
+- **GX rule (F1).** A GX (WCX on a leg's g-side stub) is allowed only on a leg of a G′ that FINISHED earlier in time
+  (`dead` without `own`). Before, every G′'s hooks were searched with `dead = own | finished`, i.e. they could cross
+  the stubs of the component's own legs during its own checks. Own middle segments stay crossable after both passes
+  (dead). `LGEN_GX_RULE=own` restores the old rule (positive control only).
+- **Ani placement, drawn (F2).** After pass 2, `_checks` draws Ani's Fig. 23 walk on the chain itself, per check
+  i = (a_i, b_i): Out_{i−1} → Op_i (the chain passes a point j next to the SO_i box p) → SD_i (the piece ends at the
+  SD_i box q); a new piece starts at p (Out_i). Boxes are joined to their location by a **wire**: a path of
+  reserved wall points from the box to the location's non-floor 4-neighbours (reserved for every location from the
+  start, `reserve_locations`). A wire crosses no floor, no other wire, and is never used or crossed by any chain;
+  it may cross an already drawn chain piece only by an SX in which the wire is the LATER line (`WSX` events; a level-1
+  wire never crosses a level-2 piece). Wire length is penalized (`LGEN_WIRE_PEN`, default 4, ending cost only), so
+  most wires have length 0. The old reachability-only hooks are `LGEN_PLACEMENT=hk` (positive control only).
+- **Search.** `joint` checks after every tile that both chain heads can still reach their lane exits (lookahead);
+  `_tile_solutions` enumerates the level-2 G′ routings depth-first over the variants of every G′ (`_route_seq`; the
+  first leaf is the old greedy routing), so a lookahead rejection gets the next routing instead of the next
+  permutation; with no earlier tile within 140 cells the rewind falls back to the latest tiles (`LGEN_FAR_REWIND`).
+  Pass 1 now also keeps its distance from the leg bodies (Wb and g-side are penalty centres, `LGEN_PEN_LEGS`):
+  with stubbed legs the window penalty alone let pass 1 hug a leg between Wt and Wb and seal pass 2 out.
+  `LGEN_STRATS` overrides the strategy order of `block_template`; the SCD tile and the crossover templates route
+  only with `l2first` (level-2 curve drawn first; time order is still level 1 then level 2) and long per-tile
+  deadlines (`LGEN_TILE_SECS` 1500-3000). For `l2first` two drawing-order aids: **XW** (a level-1 piece drawn after
+  a level-2 wire may cross it straight and perpendicular: an SX whose earlier line in time is the chain, i.e. the
+  same gadget as WSX; `LGEN_XW=0` off; `validate_rules` checks each one) and a **level-1 keep-out**
+  (`keepout_l1`: the side points of every tile-leg slot and a box/chain spot next to every level-1 wire-tree root
+  stay reserved while level 2 is drawn and are released before level 1; `LGEN_L1_KEEP=0` off). Deadlines are
+  wall-clock, so results depend on machine load: run few jobs in parallel.
+- **Bookkeeping.** `Router.gseg` (one record per routed G′: trace and event range, own legs, checks, locations),
+  `ev_ti` (trace index of every event), events `OP` / `SD` / `OUT` / `WSX`; `res` is now part of the snapshot;
+  `dijkstra(..., tpen=)` charges a target's cost only when the path ENDS there.
+- **`validate_rules`** (called by `validate`, every template): replays F1 by time order (level-1 G′s, then level-2,
+  each in routing order), independently of the router's `dead` sets: every GX on a leg of a G′ finished earlier and
+  never own; own middles crossed only after the G′'s last Wb; never the own SCD interior at level 1; F2 contact
+  geometry: OP, SD, OUT per check in order; box–wire–location 4-paths (wire SX: straight perpendicular chain point,
+  level rule); wires never on a chain point, floor or the coin halo.
+- **`gprime_items` → `template_record['gseq']`**: every routed G′ as an item list for `L_e2e.py`.
+- Crossover templates of the repaired router are `build/lgen/xtemplate_r6_<fx><fy><p>.json` (`LGEN_TPL_TAG`); the
+  review-6 state's `xtemplate_<fx><fy><p>.json` are kept unchanged for comparison.
+- `assemble`: `contacts_drawn` (OP = SD = OUT = #checks) is part of `coverage_ok`; wire SX count in machinery SX.
+
+**Scaled SCD tile (needed for F1/F2 routing).** Under the repaired rules the r5 SCD tile (`X_build.scd_tile_r5`)
+could not be routed in either parity (both chains, the check walks and their wires do not fit through the 1-cell
+gaps between adjacent legs; failures at d1 Wt d1.A, prec Wb prec.E / Wt prec.F, prec SD A). `X_build.scd_tile`
+now takes (sv, sp) = (`SCD_SV`, `SCD_SP`) = (3, 6): every component leg gets sv g-side stub cells between its port
+and Wb (`_TB.sleg`; the g-side, i.e. the L_gen check location, is the stub's last cell), and the legs of ports one
+cell apart (pp A|B, pd A|B, pd C|D) are bent apart to sp columns. Raw gadget windows, node structure and the leg
+contract are unchanged (`check_tile_legs`; new `check_tile_spacing`: no unintended diagonal touch); sv = 0, sp = 2
+reproduces the r5 tile cell for cell (all three variants). In `Router` the stub cells and the links inside a stub
+have role GXR (crossing one is a GX on that leg) and a stubbed g-side is LOC. Smaller scales failed: (2, 4), (3, 4),
+(2, 6), (2, 7) in at least one parity; (3, 6) is the smallest that routed in both. The tile grows from 19 × 37 to
+29 × 55 (variants 0, 2; variant 1: 21 × 43 → 31 × 61), the crossover map from 453 × 432 to 569 × 550, and the macro pitch from P = 469 to **P = 597**
+(MID 298; same 4-cell margin under every flip).
+
+**Results (2026-10-31; Windows, 12 cores; routing is deadline-bound, so times depend on load).**
+
+| Check | Result |
+|---|---|
+| r5 SCD tile under the repaired rules | FAILED both parities (pen 4 + lookahead, 120 s deadlines) |
+| scaled tile, sv = 0, sp = 2 vs `scd_tile_r5` | identical cells / owners, variants 0-2 |
+| crossover rebuilt with the scaled tile (`X_build`, seed 2) | 569 × 550, 66 tiles, 166 boulders, all map checks pass (r5 copy kept as `build/xover/*_r5.*`) |
+| `X_verify.py --moves 100000` on the new map | ALL AS EXPECTED (map network SOUND + COMPLETE, 604 split legs, SCD tile 12 clean SOUND/COMPLETE, c2 random walk 100,000 moves) |
+| `review5_abc.py`, `review5_cd.py` | v2 tile passes (clean set 3, broken absorbing, SOUND); v2 diode checks split |
+| exact window reach (`window_reach`) | unchanged: the raw windows are unchanged |
+| tile templates dio / scdc, parity 0 / 1 (P = 597, `l2first`) | all routed; `validate` ok, `validate_rules` no errors; scdc: 14 checks each, GX 8 / 2 (all on finished legs) |
+| `L_e2e.py tiles` | ALL AS EXPECTED (repaired 12/12 exact; controls as required; diode game LOSE/WIN vs review-6 WIN/WIN) |
+| `review6_weak.py --generated`, `review6_hooks.py`, `review6_hooks2.py` | every clean set = the true one; no own or pending GX |
+| crossover templates `xtemplate_r6_<fx><fy><p>` | **011 routed** (146 G′, validate ok, rules clean, L_e2e 146/146 exact). **000, 001, 010, 100, 101, 110, 111 FAILED**: level 2 routes, then level 1 cannot finish one SCD (000/001: g045 tile.O Wb / SD contact at O; 010: g028 tile.J; 100: g041 tile.J Wb; 110: g056 Op contact at J; 111: g055 tile.O Wt), the same tile in two or three runs each; 101: level 1 stuck at g019 / g034 / g041 (tile.J, tile.O); second run stuck at g034 tile.O Wb again, stopped |
+| `--run 20 3`, fresh seed | not run: blocked by the missing crossover templates (coverage would fail by construction) |
+
+**Why the 7 crossover flips fail, and what geometry is needed.** In `l2first` the whole level-2 curve (component
+G′s, their check walks, boxes and wires) is drawn first; the level-1 SCD composite must then still reach both
+sides of its tile-leg slots and box spots next to O, I, J. Those slots sit right next to the junction cells gsO /
+gsJ, which the scaled tile packs between tog.E's leg, the D pocket and prec's spread A leg (gsO) or between
+prec.F / d2.B and the J approach (gsJ; in variant 2 the J approach also runs down the left side just above O).
+Level 2 fills these pockets; level 1 may cross level-2 chains (SX) and wires (XW) but not boxes, own-SCD interior,
+pending stubs or wire-tree roots. `joint` and `l1first` (level 1 first) did not route even the single SCD tile (old
+search: level-2 G′ failures; current search: no result within 70 min). A level-1 keep-out reserved during level 2 (`LGEN_L1_KEEP=1`)
+made level 2 fail. Needed: room at the tile legs too, e.g. g-side stubs on tile.O / tile.I / tile.J (between the gs
+node and the tile-leg Wb, like the component stubs) so that the level-1 slots and box spots lie outside the packed
+junction pockets, and the variant-2 J port moved up the left side away from O; then rebuild the crossover, update
+P, and re-route all 8 flips.
+

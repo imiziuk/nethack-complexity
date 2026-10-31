@@ -301,6 +301,33 @@ class _TB:
         self.legs[name] = dict(gside=gside, cells=cs, Wb=cs[0], mid=cs[1:-1], Wt=cs[-1], node=node)
         return (cs[-1][0] + d[0], cs[-1][1] + d[1])           # first cell beyond the leg (outer junction)
 
+    def sleg(self, name, port, d, node, sv=0, shift=0, turn=1):
+        """leg with a g-side stub (review 6 scaling): from the port, `turn` cells along d, |shift| cells sideways,
+        then along d again until the path has advanced sv cells along d; the last stub cell is the g-side (the check
+        location, L_gen) and the leg's Wb is the next cell. sv = shift = 0: the plain leg (g-side = port cell).
+        The stub cells lie outside every raw gadget window; they are the port's location region (L_gen role GXR)."""
+        x, y = port
+        path = []
+        side = ((1 if shift > 0 else -1), 0) if d[0] == 0 else (0, (1 if shift > 0 else -1))
+        if shift:
+            assert 1 <= turn <= sv, ('stub turn', name, sv, turn)
+        for k in range(turn if shift else sv):
+            x, y = x + d[0], y + d[1]
+            path.append((x, y))
+        for k in range(abs(shift)):
+            x, y = x + side[0], y + side[1]
+            path.append((x, y))
+        for k in range(sv - turn if shift else 0):
+            x, y = x + d[0], y + d[1]
+            path.append((x, y))
+        for c in path:
+            self._put(c, '.', ('gstub', name))
+        gside = path[-1] if path else port
+        nxt = self.leg(name, gside, d, node)
+        self.legs[name]['port'] = port
+        self.legs[name]['stub'] = path[:-1]
+        return nxt
+
     def junction(self, node, cells, members):
         for c in cells:
             self._put(c, '.', ('node', node))
@@ -323,7 +350,9 @@ class _TB:
         self.cport = {k: f(c) for k, c in self.cport.items()}
         self.comps = [(n, k, f(o)) for n, k, o in self.comps]
         self.legs = {l: dict(gside=f(Lg['gside']), cells=[f(c) for c in Lg['cells']], Wb=f(Lg['Wb']),
-                             mid=[f(c) for c in Lg['mid']], Wt=f(Lg['Wt']), node=Lg['node']) for l, Lg in self.legs.items()}
+                             mid=[f(c) for c in Lg['mid']], Wt=f(Lg['Wt']), node=Lg['node'],
+                             port=f(Lg.get('port', Lg['gside'])), stub=[f(c) for c in Lg.get('stub', [])])
+                     for l, Lg in self.legs.items()}
         self.ports = {p: (f(c), d, [f(z) for z in zone]) for p, (c, d, zone) in self.ports.items()}
         return max(x for x, _ in self.cells) + 1, max(y for _, y in self.cells) + 1
 
@@ -437,7 +466,7 @@ def check_tile_legs(t,cells=None, owner=None, cport=None, legs=None, tports=None
 SCD_VARIANTS = (0, 1, 2)
 
 
-def scd_tile(variant=0):
+def scd_tile_r5(variant=0):
     """v2 SCD tile (Fig. 37: 1-toggle + precursor + 2 protodiodes, 6 boulders, closed). Unlike v1 every L' location of
     every component (pp: A, B, C, E, F; pd: A, B, C, D) and the SCD's own O, I, J get their own LEG-cell hallway with a
     Wb and a Wt slot before the junction (tT, T, X, Y, cd1, cd2, gsO, gsI, gsJ), exactly the e_l edges of B2_e2e.gprime:
@@ -513,6 +542,114 @@ def scd_tile(variant=0):
     T.variant = variant
     check_tile_legs(T)
     return T
+
+
+# review 6 scaling of the SCD tile (2026-10-31): the r5 tile could not be routed under the F1/F2 rules (both chains,
+# Ani's check walks and their wires do not fit through the 1-cell gaps between adjacent legs). SCD_SV extra g-side
+# stub cells on every component leg, and the legs of adjacent ports 1 cell apart (pp A|B, pd A|B, pd C|D) spread
+# to SCD_SP columns apart; raw gadget windows, the node structure and the leg contract are unchanged.
+SCD_SV = int(os.environ.get('XB_SCD_SV', '3'))
+SCD_SP = int(os.environ.get('XB_SCD_SP', '6'))
+
+
+def scd_tile(variant=0, sv=None, sp=None):
+    """v2 SCD tile, review-6 scaled (see scd_tile_r5 for the structure: Fig. 37 1-toggle + precursor + 2 protodiodes,
+    every L' location on its own LEG-cell hallway, tile ports O, I, J on the left in variant order).
+    sv = g-side stub length of every component leg (the g-side = L_gen check location is the stub's last cell);
+    sp = column distance of the spread legs (toggle/precursor A from B, d1.A from d1.B, d2.B from d2.A,
+    d1.C from d1.D, d2.D from d2.C). sv = 0, sp = 2 is exactly scd_tile_r5."""
+    sv = SCD_SV if sv is None else sv
+    sp = SCD_SP if sp is None else sp
+    assert sp >= 2 and (sv >= 1 or sp == 2)
+    L = LEG
+    b = _TB()
+    U, D, Lf, R = (0, -1), (0, 1), (-1, 0), (1, 0)
+    tx = max(1, L - 2)
+    ty = sv + L + 1
+    b.comp('tog', 'pp', tx, ty, track=(4, 6))                     # 1-toggle in state r
+    yT = ty + 4 + sv + L + 1                                      # T / gsO junction row
+    px0, py0 = tx + max(5, sp + 2), yT + 1 + L + sv       # prec A' (B - sp) stays right of tog.F
+    b.comp('prec', 'pp', px0, py0, track=(3, 5))                  # precursor state 2 = SCD closed
+    yN = py0 + 4 + sv + L + 1                                     # X / Y / gsI / gsJ junction row
+    dy0 = yN + 1 + L + sv
+    b.comp('d1', 'pd', px0, dy0)
+    b.comp('d2', 'pd', px0 + 5, dy0)
+    cp = b.cport
+    # toggle's closed A/B/C junction tT (A spread left of B)
+    sh = {'A': -(sp - 2), 'B': 0, 'C': 0}
+    for P in 'ABC':
+        b.sleg(f'tog.{P}', cp[('tog', P)], U, 'tT', sv, sh[P])
+    b.junction('tT', [(x, ty - sv - L - 1) for x in range(tx + 4 - sp, tx + 8)], [('tog', P) for P in 'ABC'])
+    # tog.E -> gsO -> tile leg -> port O
+    gsO = b.sleg('tog.E', cp[('tog', 'E')], D, 'gsO', sv)
+    b.junction('gsO', [gsO], [('tog', 'E'), ('tile', 'O')])
+    o_port = b.leg('tile.O', gsO, Lf, 'O')
+    xL = o_port[0] - max(0, sp - 3)                               # left edge column of the approaches (2 left of tog A')
+    # T = tog.F + prec.A/B/C
+    t = b.sleg('tog.F', cp[('tog', 'F')], D, 'T', sv)
+    for P in 'ABC':
+        b.sleg(f'prec.{P}', cp[('prec', P)], U, 'T', sv, sh[P])
+    assert t[1] == yT
+    b.junction('T', [(x, yT) for x in range(t[0], px0 + 8)], [('tog', 'F')] + [('prec', P) for P in 'ABC'])
+    # X = prec.E + d1.B ; Y = prec.F + d2.A (aligned columns, single node cell)
+    for nd, (c1, p1), (c2, p2) in (('X', ('prec', 'E'), ('d1', 'B')), ('Y', ('prec', 'F'), ('d2', 'A'))):
+        j = b.sleg(f'{c1}.{p1}', cp[(c1, p1)], D, nd, sv)
+        j2 = b.sleg(f'{c2}.{p2}', cp[(c2, p2)], U, nd, sv)
+        assert j == j2 and j[1] == yN, (nd, j, j2)
+        b.junction(nd, [j], [(c1, p1), (c2, p2)])
+    # I = d1.A (spread left) -> gsI -> tile leg -> port I ; J = d2.B (spread right) -> gsJ -> tile leg -> port J
+    gsI = b.sleg('d1.A', cp[('d1', 'A')], U, 'gsI', sv, -(sp - 2))
+    b.junction('gsI', [gsI], [('d1', 'A'), ('tile', 'I')])
+    b.tport('I', b.leg('tile.I', gsI, Lf, 'I'), Lf, 'tile.I')
+    gsJ = b.sleg('d2.B', cp[('d2', 'B')], U, 'gsJ', sv, sp - 2)
+    b.junction('gsJ', [gsJ], [('d2', 'B'), ('tile', 'J')])
+    jx, jy = b.leg('tile.J', gsJ, R, 'J')     # first cell beyond the leg
+    ycd = dy0 + 2 + sv + L + 1                # diode C/D junction row
+    ybot = ycd + 2
+    ytop = ty - sv - L - 3                    # free row above the tT junction
+    if variant in (0, 1):                     # J: down the right side, left along the bottom, port bottom-left
+        appr = [(jx, y) for y in range(jy, ybot + 1)] + [(x, ybot) for x in range(jx - 1, xL, -1)]
+        b.tport('J', (xL, ybot), Lf, 'tile.J', appr)
+    else:                                     # J: up the right side, left along the top, down to just above O
+        appr = ([(jx, y) for y in range(jy, ytop - 1, -1)] + [(x, ytop) for x in range(jx - 1, xL - 1, -1)] +
+                [(xL, y) for y in range(ytop + 1, o_port[1] - 4)])
+        b.tport('J', (xL, o_port[1] - 4), Lf, 'tile.J', appr)
+    if variant == 1:                          # O: up, right along the top, down the far right, left along the bottom
+        xr, yb = jx + 2, ybot + 4
+        appr = ([(x, o_port[1]) for x in range(o_port[0], xL - 1, -1)] +
+                [(xL, y) for y in range(o_port[1] - 1, ytop - 1, -1)] + [(x, ytop) for x in range(xL + 1, xr + 1)] +
+                [(xr, y) for y in range(ytop + 1, yb + 1)] + [(x, yb) for x in range(xr - 1, xL, -1)])
+        b.tport('O', (xL, yb), Lf, 'tile.O', appr)
+    else:
+        b.tport('O', o_port, Lf, 'tile.O')
+    # cd1, cd2: diode C, D legs (d1.C spread left of d1.D, d2.D spread right of d2.C)
+    for dn, shc, shd in (('d1', -(sp - 2), 0), ('d2', 0, sp - 2)):
+        jc = b.sleg(f'{dn}.C', cp[(dn, 'C')], D, f'{dn}cd', sv, shc)
+        jd = b.sleg(f'{dn}.D', cp[(dn, 'D')], D, f'{dn}cd', sv, shd)
+        assert jc[1] == jd[1] == ycd
+        b.junction(f'{dn}cd', [(x, jc[1]) for x in range(jc[0], jd[0] + 1)], [(dn, 'C'), (dn, 'D')])
+    W, H = b.finish()
+    cp = b.cport
+    checks = {f'{n}.{P}': [c] for (n, P), c in cp.items()}       # check location = the port cell (X_verify regions)
+    checks.update({f'scd.{p}': [b.legs[f'tile.{p}']['gside']] for p in 'OIJ'})
+    T = Tile('scd', b.cells, b.ports, b.comps, checks, W, H, b.legs, b.nodes)
+    T.owner, T.cport = b.owner, b.cport
+    T.variant = variant
+    T.scale = (sv, sp)
+    check_tile_legs(T)
+    check_tile_spacing(T)
+    return T
+
+
+def check_tile_spacing(T):
+    """no unintended 8-adjacency: two floor cells that touch diagonally share a floor 4-neighbour (so a diagonal
+    step adds no connection the 4-moves lack) unless both are inside one raw gadget window (Ani's boards)."""
+    comp = {c for c, o in T.owner.items() if o[0] in ('comp', 'port')}
+    for (x, y) in T.cells:
+        for dx in (-1, 1):
+            c2 = (x + dx, y + 1)
+            if c2 in T.cells and ((x, y) not in comp or c2 not in comp):
+                assert (x + dx, y) in T.cells or (x, y + 1) in T.cells, ('diagonal touch', (x, y), c2)
 
 
 def diode_tile():

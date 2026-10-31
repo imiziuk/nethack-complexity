@@ -422,7 +422,7 @@ class Bus:
 # ============================================================ 5. concrete blocks (P x P cells; tiles k*P x P)
 import X_build as XB
 
-P, MID = 469, 234                     # macro pitch (fits the 453 x 432 crossover under every flip) and midline
+P, MID = 597, 298                     # macro pitch (fits the 569 x 550 review-6-scaled crossover under every flip; r5: 469, 234)
 LANES = (2, P - 3)                    # chain lane rows inside every block (top, bottom)
 XDIR = os.path.join(ROOT, 'build', 'xover')
 SIDE_CELL = {'T': (MID, 0), 'B': (MID, P - 1), 'L': (0, MID), 'R': (P - 1, MID)}
@@ -518,7 +518,8 @@ def x_block(fx, fy):
                                    for cm in t['comps']],
                             checks={k: [g(c) for c in v] for k, v in t['checks'].items()},
                             legs={k: dict(gside=g(L['gside']), Wb=g(L['Wb']), Wt=g(L['Wt']),
-                                          mid=[g(c) for c in L['mid']], cells=[g(c) for c in L['cells']])
+                                          mid=[g(c) for c in L['mid']], cells=[g(c) for c in L['cells']],
+                                          stub=[g(c) for c in L.get('stub', [])])
                                   for k, L in t['legs'].items()}))
     return b
 
@@ -532,7 +533,8 @@ def place_local(T, s):
     owner = {g(c): o for c, o in T.owner.items()}
     ports = {p: g(c) for p, (c, d, z) in T.ports.items()}
     legs = {l: dict(gside=g(L['gside']), Wb=g(L['Wb']), Wt=g(L['Wt']), mid=[g(c) for c in L['mid']],
-                    cells=[g(c) for c in L['cells']]) for l, L in T.legs.items()}
+                    cells=[g(c) for c in L['cells']], stub=[g(c) for c in L.get('stub', [])])
+            for l, L in T.legs.items()}
     checks = {k: [g(c) for c in v] for k, v in T.checks.items()}
     comps = [(n, k, [g(c) for c in cm.values()]) for n, k, cm in XB.local_comps(T)]
     return W, H, cells, owner, ports, legs, checks, comps
@@ -620,7 +622,8 @@ def build_tile_block(Bs, tn):
                             comps=[dict(name=n_, kind=k_, cells=[tr(c) for c in cs]) for n_, k_, cs in comps],
                             checks={kk: [tr(c) for c in v] for kk, v in checks.items()},
                             legs={l: dict(gside=tr(L['gside']), Wb=tr(L['Wb']), Wt=tr(L['Wt']),
-                                          mid=[tr(c) for c in L['mid']], cells=[tr(c) for c in L['cells']])
+                                          mid=[tr(c) for c in L['mid']], cells=[tr(c) for c in L['cells']],
+                                          stub=[tr(c) for c in L.get('stub', [])])
                                   for l, L in legs.items()}))
     elif k == 'dio':
         Tl = XB.diode_tile()
@@ -635,7 +638,8 @@ def build_tile_block(Bs, tn):
                             comps=[dict(name=n_, kind=k_, cells=[tr(c) for c in cs]) for n_, k_, cs in comps],
                             checks={kk: [tr(c) for c in v] for kk, v in checks.items()},
                             legs={l: dict(gside=tr(L['gside']), Wb=tr(L['Wb']), Wt=tr(L['Wt']),
-                                          mid=[tr(c) for c in L['mid']], cells=[tr(c) for c in L['cells']])
+                                          mid=[tr(c) for c in L['mid']], cells=[tr(c) for c in L['cells']],
+                                          stub=[tr(c) for c in L.get('stub', [])])
                                   for l, L in legs.items()}))
     elif k == 'coin':
         W, H = len(COIN[0]), len(COIN)
@@ -995,6 +999,10 @@ class Router:
             tid = t['id']
             zones = set(map(tuple, t['zones']))
             legcells = {tuple(c) for L in t['legs'].values() for c in [L['Wb'], L['Wt']] + L['mid']}
+            # review-6 scaled SCD tile: g-side stub cells (port .. g-side) are the port's location region; the
+            # stubbed g-side itself is the check location (LOC, never crossed)
+            stubs = {tuple(c): (tid, ln) for ln, L in t['legs'].items() for c in L.get('stub', [])}
+            sgs = {tuple(L['gside']) for L in t['legs'].values() if L.get('stub')}
             for c in map(tuple, t['cells']):
                 if t['kind'] == 'scd' and c not in zones and c not in legcells:
                     ro[c] = SCDINT
@@ -1002,6 +1010,11 @@ class Router:
             for cm in t['comps']:
                 for c in map(tuple, cm['cells']):
                     ro[c] = WIN
+            for c, lg in stubs.items():
+                ro[c] = GXR
+                leg[c] = lg
+            for c in sgs:
+                ro[c] = LOC
             for ln, L in t['legs'].items():
                 for c in (L['Wb'], L['Wt']):
                     ro[tuple(c)] = SLOT
@@ -1042,6 +1055,10 @@ class Router:
                 if key in gsl:
                     self.role[i] = GXR
                     self.leg[i] = gsl[key]
+                elif r1 == GXR and r2 == GXR:          # link inside one g-side stub
+                    assert leg[c] == leg[c2]
+                    self.role[i] = GXR
+                    self.leg[i] = leg[c]
                 elif pair & {WIN, LOC, COINC}:
                     self.role[i] = WIN
                 elif SLOT in pair:
@@ -1106,6 +1123,11 @@ class Router:
         self.pn = {}                     # chain point -> (prev, next)
         self.jumped = set()
         self.gx_used = set()
+        # review-6 repair: geometry of drawn wires, point -> (level, prev, next) along the wire (box .. tree); a
+        # level-1 chain drawn AFTER a level-2 wire may cross it by an SX whose earlier line (in time) is the chain
+        # ('XW'; the same gadget as WSX, only the drawing order differs). LGEN_XW=0: off.
+        self.wgeo = {}
+        self.xw = os.environ.get('LGEN_XW', '1') == '1'
         self.dead = {1: set(), 2: set()}     # legs of G's checked earlier in TIME (their g-side stubs are dead)
         self.box = None                      # search window in ORIGINAL coordinates (x0, y0, x1, y1)
         self.finished = set()
@@ -1188,6 +1210,12 @@ class Router:
         perp = {abs(p - c), abs(q - c)}
         return perp == ({W} if d[1] == 0 else {1})
 
+    def xw_ok(self, c, d):
+        lv, p, q = self.wgeo[c]
+        if lv != 2 or p is None or q is None:
+            return False
+        return {abs(p - c), abs(q - c)} == ({self.W} if d[1] == 0 else {1}) and p + q == 2 * c
+
     def neigh(self, i, level, own, targets=(), dead=()):
         W, H = self.W, self.H
         x, y = i % W, i // W
@@ -1214,6 +1242,8 @@ class Router:
                     yield k, JUMP, (kind, j)
             elif self.occ[j] and self.sx_ok(j, d):
                 yield k, JUMP, ('SX', j)
+            elif level == 1 and self.xw and j in self.wgeo and j not in self.jumped and self.xw_ok(j, d):
+                yield k, JUMP, ('XW', j)
 
     def dijkstra(self, src, targets, level, own, limit=None, dead=(), pen=None, box=None, tpen=None):
         """tpen: extra cost of ENDING at a target (paid once, at the end; not when passing through it)"""
@@ -1276,7 +1306,7 @@ class Router:
     def jump(self, kind, f, info=None):
         assert f not in self.jumped, ('double crossing', f)
         self.jumped.add(f)
-        if kind != 'SX':
+        if kind not in ('SX', 'XW'):
             self.occ[f] = 1
         self.events.append((kind, f, info if info is not None else self.role[f]))
         self.ev_ti.append(len(self.trace))
@@ -1316,10 +1346,11 @@ class Router:
     def snapshot(self):
         return (bytes(self.occ), dict(self.pn), set(self.jumped), set(self.gx_used), len(self.events),
                 len(self.trace), set(self.finished), {k: set(v) for k, v in self.dead.items()}, len(self.starts),
-                dict(self.lastp), self.cur, bytes(self.res), len(self.gseg))
+                dict(self.lastp), self.cur, bytes(self.res), len(self.gseg), dict(self.wgeo))
 
     def restore(self, sn):
-        occ, pn, jumped, gxu, ne, nt, fin, dead, ns, lastp, cur, res, ng = sn
+        occ, pn, jumped, gxu, ne, nt, fin, dead, ns, lastp, cur, res, ng, wgeo = sn
+        self.wgeo = dict(wgeo)
         self.res[:] = res
         del self.gseg[ng:]
         del self.ev_ti[ne:]
@@ -1349,7 +1380,12 @@ class Router:
         seg0 = (len(self.trace), len(self.events))
         # pass 1 keeps away from G (room for pass 2 and the hooks): penalty on cells within distance rad of G
         pen = {}
-        for c in G['gcells']:
+        # review-6 scaling: the stubbed legs reach beyond rad of the window, so the leg bodies (Wb, g-side) are
+        # penalty centres too (else pass 1 hugs a leg between Wt and Wb and seals pass 2 out); LGEN_PEN_LEGS=0: old
+        centres = list(G['gcells'])
+        if os.environ.get('LGEN_PEN_LEGS', '1') == '1':
+            centres += [tuple(wb) for _, _, wb in G['legs']] + [tuple(c) for c in G['locs'].values()]
+        for c in centres:
             for dx in range(-2 * rad, 2 * rad + 1):
                 for dy in range(-2 * rad, 2 * rad + 1):
                     x, y = 2 * c[0] + 1 + dx, 2 * c[1] + 1 + dy
@@ -1451,6 +1487,45 @@ class Router:
                         self.res[j] = 1
                         pts.append(j)
                 self.tree0[(key, p)] = pts
+
+    def keepout_l1(self, G1s):
+        """l2first drawing order (level-2 curve drawn before the level-1 curve, time order unchanged): keep room for
+        each level-1 G' (SCD composite) while level 2 is drawn -- the two side points (and the next ones) of every
+        tile-leg slot, and for every level-1 location a box point next to its wire-tree root, a chain point next to
+        that box and the chain point's two side points. Returns the reserved points (released before level 1)."""
+        W = self.W
+        out = []
+
+        def take(j):
+            if 0 <= j < len(self.res) and self.free(j, True):
+                self.res[j] = 1
+                out.append(j)
+        for G in G1s:
+            key = (G['tile'], G['name'], G['level'])
+            if os.environ.get('LGEN_L1_KEEP_SLOTS', '0') == '1':      # too strong: level 2 then fails (off)
+                for ln, wt, wb in G['legs']:
+                    sx_, sy_ = (wt[0] > wb[0]) - (wt[0] < wb[0]), (wt[1] > wb[1]) - (wt[1] < wb[1])
+                    d = -sy_ + sx_ * W                  # side direction (perpendicular to the leg)
+                    for c in (wt, wb):
+                        f = self.R(c)
+                        for k in (1, 2):
+                            take(f + k * d)
+                            take(f - k * d)
+            for p in G['locs']:
+                for t in self.tree0.get((key, p), ()):
+                    for u in (1, -1, W, -W):              # one box/chain spot per tree root
+                        b, j = t + u, t + 2 * u
+                        if self.free(b, True) and self.free(j, True):
+                            take(b)
+                            take(j)
+                            break
+        return out
+
+    def _wreg(self, seq, level):
+        # interior wire points only (not the box, not the tree point); consecutive entries that are not adjacent
+        # (an SX jump of the wire) leave the point non-straight, so it is never crossed
+        for u, w, v in zip(seq, seq[1:], seq[2:]):
+            self.wgeo[w] = (level, u, v)
 
     def _wire_moves(self, i, level):
         """wire moves from point i: plain steps to free points (cost 1), or an SX jump over a straight piece of an
@@ -1594,6 +1669,7 @@ class Router:
                 reserve(wp)
                 wp = wp[1:]
                 tb = min(t for t in tree[b] if abs(t - (wp[-1] if wp else p)) in (1, W))
+                self._wreg([p] + list(wp) + [tb], lev)
                 tree_b = tree[b] | set(wp) if not wjp else tree[b]
                 self.events.append(('OP', j, (key, k, p, tb, wp, wjp)))
                 self.ev_ti.append(len(self.trace) - 1)
@@ -1628,6 +1704,7 @@ class Router:
                     reserve(wq)
                     last = wq[-1] if wq else q
                     ta = min(t for t in tree1[a] if abs(t - last) in (1, W))
+                    self._wreg([q] + list(wq) + [ta], lev)
                     tree2 = dict(tree1)
                     if not wjq:
                         tree2[a] = tree1[a] | set(wq)
@@ -1693,21 +1770,44 @@ class Router:
                 l1 = [(tid, 'scd', info, v1)]
             else:
                 nh1, l1 = h1, []
-            for perm in itertools.permutations(g2s):
-                if time.time() > deadline:
-                    break
-                sn2 = self.snapshot()
-                self.cur = 2
-                hh, l2 = h2, []
-                for G in perm:
-                    hh, entry = self._route_g(hh, G, margin)
-                    if hh is None:
+            # phase 0: the old greedy routing per permutation (first variant that routes, per G'); phase 1:
+            # depth-first over the variants of every level-2 G' (review-6 repair: the caller's lane lookahead can
+            # reject a routing and get the next one). The first solution is the old one, so templates that routed
+            # before are unchanged.
+            for phase in ((0,) if not g2s else (0, 1)):
+                for perm in itertools.permutations(g2s):
+                    if time.time() > deadline:
                         break
-                    l2.append(entry)
-                if hh is not None or not g2s:
-                    yield nh1, hh, l1, l2
-                self.restore(sn2)
+                    sn2 = self.snapshot()
+                    self.cur = 2
+                    if not g2s:
+                        yield nh1, h2, l1, []
+                    else:
+                        for hh, l2 in self._route_seq(h2, list(perm), margin, [], deadline, greedy=phase == 0):
+                            yield nh1, hh, l1, l2
+                    self.restore(sn2)
             self.restore(sn1)
+
+    def _route_seq(self, hh, Gs, margin, l2, deadline, greedy=False):
+        if not Gs:
+            yield hh, l2
+            return
+        G = Gs[0]
+        for v in self.VARIANTS:
+            if time.time() > deadline:
+                return
+            sn = self.snapshot()
+            nh, info = self.gprime(hh, G, *v, margin=margin)
+            if nh is not None:
+                yield from self._route_seq(nh, Gs[1:], margin, l2 + [(G['tile'], G['name'], info, v)], deadline,
+                                           greedy)
+                self.restore(sn)
+                if greedy:
+                    return
+                continue
+            self.last = (G['tile'], G['name'], info)
+            self.retries += 1
+            self.restore(sn)
 
     def _can_reach(self, h, t, lv):
         """can the chain head h still get to the lane exit t (geometry only, no commit)?"""
@@ -1780,6 +1880,8 @@ class Router:
                 if os.environ.get('LGEN_DEBUG'):
                     print('stuck', stuck, 'cands', cands, 'hist', len(hist), 'near', len(near), 'fails', fails[stuck],
                           self.last, flush=True)
+                if not near and hist and os.environ.get('LGEN_FAR_REWIND', '1') == '1':
+                    near = list(range(len(hist)))      # review-6 repair: no nearby earlier tile -> rewind the latest ones
                 if not near or rewinds >= 400 or fails[stuck] > 20:
                     return None, None, self.last or (stuck, 'no routing found')
                 rewinds += 1
@@ -1824,6 +1926,8 @@ def block_template(b, parity, coin=None, xe=None, strategies=('joint', 'l1first'
     then level 2; only the order in which the two curves are DRAWN differs): 'joint' = both chains tile by tile,
     'l1first' = whole level-1 chain drawn first, 'l2first' = whole level-2 chain drawn first; the first that
     succeeds is kept. Returns dict with events, logs, lane crossings."""
+    if os.environ.get('LGEN_STRATS'):
+        strategies = tuple(os.environ['LGEN_STRATS'].split(','))
     for k, strat in enumerate(strategies):
         if os.environ.get('LGEN_PROGRESS'):
             print(f'strategy {strat}', file=sys.stderr, flush=True)
@@ -1875,7 +1979,11 @@ def _block_template(b, parity, coin, xe, strat):
     else:
         first = 1 if strat == 'l1first' else 2
         logs, err = {}, None
+        keep = Rt.keepout_l1(Gl[1]) if first == 2 and os.environ.get('LGEN_L1_KEEP', '0') == '1' else []
         for lv in (first, 3 - first):
+            if lv == 1:
+                for t in keep:                  # release the level-1 keep-out before the level-1 curve is drawn
+                    Rt.res[t] = 0
             a = Rt.joint(ends[1][0], ends[1][1], Gl[1], None, None, []) if lv == 1 else                 Rt.joint(None, None, [], ends[2][0], ends[2][1], Gl[2])
             logs[lv] = a[0] if lv == 1 else a[1]
             if a[2]:
@@ -2172,7 +2280,7 @@ def assemble(inst, name, x_ok=True):
                                  ok=tot.get('OP', 0) == tot.get('SD', 0) == tot.get('OUT', 0) == nchecks)
     res['coverage_ok'] = res['coverage_ok'] and res['contacts_drawn']['ok']
     res['machinery'] = dict(WCX=wcx, SO=nchecks, SD=nchecks,
-                            SX=tot.get('SX', 0) + tot.get('WSX', 0) + tot.get('SX.margin', 0))
+                            SX=tot.get('SX', 0) + tot.get('WSX', 0) + tot.get('XW', 0) + tot.get('SX.margin', 0))
     res['machinery_blocks_est'] = sum(MACHINE_BLOCKS[k] * v for k, v in res['machinery'].items())
     mb = machinery_boards()
     if mb:          # counts backed by the concrete boards (placement / hook curves still not drawn: M-machinery.md)
@@ -2349,7 +2457,7 @@ def validate_rules(Rt, b, seen=None):
                 not (lg and lg[1].startswith('tile.')):
             errs.append(('own SCD interior crossed at level 1', g['key']))
     if Rt.placement == 'ani':
-        wires = set()
+        wires, wlev = set(), {}
         adjc = lambda u, v: abs(u - v) in (1, W)
         for g in segs:
             evs = [(e, Rt.events[e]) for e in range(g['e0'], g['e1']) if Rt.events[e][0] in ('OP', 'SD', 'OUT')]
@@ -2365,6 +2473,8 @@ def validate_rules(Rt, b, seen=None):
                 ok = po == p and adjc(p, j) and k_out in Rt.starts and Rt.trace[k_out] == p
                 for box, w, t, l, jps in ((p, wp, tb, bb, jpp), (q, wq, ta, a, jpq)):
                     seq = [box] + list(w) + [t]
+                    for u3, w3, v3 in zip(seq, seq[1:], seq[2:]):
+                        wlev[w3] = (g['level'], u3, v3)
                     used_j = []
                     for u, v in zip(seq, seq[1:]):
                         if adjc(u, v):
@@ -2386,7 +2496,25 @@ def validate_rules(Rt, b, seen=None):
                 if not ok:
                     errs.append(('contact geometry', g['key'], i))
                 cnt['checks'] += 1
-        bad = [t for t in wires if t in seen or Rt.occ[t]]
+        # XW: a level-1 chain point that crosses a level-2 wire straight and perpendicular (SX, chain earlier)
+        xwp = {}
+        for e2, (kd, f2, _) in enumerate(Rt.events):
+            if kd == 'XW':
+                xwp[f2] = e2
+        okx = set()
+        for f2, e2 in xwp.items():
+            ks = seen.get(f2, [])
+            g2 = inseg.get(e2)
+            wl = wlev.get(f2)
+            if len(ks) == 1 and not Rt.occ[f2] and g2 is not None and g2['level'] == 1 and wl is not None                     and wl[0] == 2 and 0 < ks[0] < len(Rt.trace) - 1:
+                a2, b2 = Rt.trace[ks[0] - 1], Rt.trace[ks[0] + 1]
+                u2, v2 = wl[1], wl[2]
+                if a2 + b2 == 2 * f2 and u2 + v2 == 2 * f2 and {abs(a2 - f2), abs(u2 - f2)} == {1, W}:
+                    okx.add(f2)
+                    cnt['XW'] += 1
+                    continue
+            errs.append(('bad wire crossing', f2))
+        bad = [t for t in wires if (t in seen or Rt.occ[t]) and t not in okx]
         if bad:
             errs.append(('wire point used by a chain', len(bad)))
         if any(Rt.near[t] or Rt.fl[t] for t in wires):
@@ -2425,8 +2553,8 @@ def gprime_items(Rt):
             letter = lambda lg: lg[1].split('.')[-1]
             if kind in ('Wt', 'Wb'):
                 items.append((ti, (kind, letter(info))))
-            elif kind == 'WSX':
-                pass
+            elif kind in ('WSX', 'XW'):
+                pass                   # XW: SX of this piece with another G''s wire = leak-free pass (no item)
             elif kind in ('OP', 'SD'):
                 # the wire's SX crossings, box -> location; one on another piece is a leak-free pass (no item)
                 items.append((ti, (kind, info[1], [wsx[x] for x in info[-1] if x in wsx])))

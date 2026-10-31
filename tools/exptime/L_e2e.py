@@ -390,6 +390,11 @@ def main_xtemplates():
                     ok = False
                     continue
                 rec = json.load(open(f))
+                if not rec.get('validate'):
+                    errs = {k: v.get('err') for k, v in rec.get('levels', {}).items()}
+                    print(f'xtemplate {fx}{fy}{par}: NOT ROUTED {errs}', flush=True)
+                    ok = False
+                    continue
                 gs = rec.get('gseq', [])
                 own_gx = sum(1 for g in gs for it in g['items'] if it[0] in ('GXo', 'GXp'))
                 bad = 0

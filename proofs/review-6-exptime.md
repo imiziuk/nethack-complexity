@@ -275,3 +275,27 @@ labelled STRONG.
 - `python tools/exptime/review6_hooks.py` (~2 min): crossing kinds on hook paths for the scdc and dio tile templates,
   both parities.
 - `python tools/exptime/review6_hooks2.py dio scdc` (~1 min): which leg each hook crosses, per location.
+
+## 8. Review-6 repairs (2026-10-31)
+
+| Finding | Repair | Evidence | Status |
+|---|---|---|---|
+| F1 GX on own legs during own checks | `Router`: GX only on legs of G′s finished earlier in time (`LGEN_GX_RULE=own` = old rule, control); own middles only after both passes; never the own SCD interior at level 1. `validate_rules` replays it by time order | tile templates dio/scdc (both parities) and crossover 011: `validate_rules` clean, every GX on a finished leg; `review6_hooks.py` / `review6_hooks2.py`: no own or pending GX; `review6_weak.py --generated`: every clean set = the true one | REPAIRED (router); VERIFIED on the tile templates and 1 of 8 crossover templates |
+| F2 guard argument needs a placement rule | Ani placement drawn on the chain (`Router._checks`: Out_{i−1} → Op_i next to the SO_i box at b_i → SD_i box at a_i; wires from boxes to the locations' wire-tree roots, reserved, crossing no floor; wire × chain only as SX with the wire the later line: WSX / XW). Placement rule P1-P4, Lemma G (guard, incl. wire SX) and Lemma C (check walk): B2-checkpath.md §3.7 | `validate_rules` P2 contact geometry on the same templates; L_e2e (next row) | STRONG (argument); drawn placement VERIFIED on the same templates |
+| (routing room, found while repairing F1/F2) | The r5 SCD tile cannot be routed under F1/F2 in either parity; SCD tile scaled (g-side stubs SCD_SV = 3, spread legs SCD_SP = 6; windows unchanged), stub cells role GXR; crossover rebuilt (569 × 550); macro pitch P = 469 → 597. Router search: greedy-then-DFS over level-2 variants, lane lookahead, far rewind, leg-body penalty, XW, level-1 keep-out (L-generator.md §9) | X_verify --moves 100000 ALL AS EXPECTED on the new map; review5_abc / review5_cd pass; tile templates dio/scdc both parities validate + validate_rules clean | VERIFIED (tiles); FAILED for 7 of 8 crossover flips (only xtemplate_r6_011 routes; level 1 cannot finish one SCD per flip after level 2 is drawn; needed geometry in L-generator.md §9) |
+| Abstract e2e with the crossings inside G′ | `L_e2e.py` (repaired / no-delimiter control / old GX rule / review-6 HK placement / two-player diode game) | tiles: repaired 12/12 G′ exact, no-delimiter control 12/12 not exact, old GX rule + Ani placement 4 not exact (protodiode 2 → 3), review-6 HK + old rule 11 not exact, diode game repaired LOSE/WIN vs review-6 WIN/WIN; crossover 011: 146/146 exact | VERIFIED on the tiles and crossover 011; the other 7 crossover flips untested (not routed) |
+| F3 Z1 near the coin only for the main layer | not repaired (needs the box redraw) | — | OPEN |
+| F4 polynomial time rests on a heuristic search | not repaired; the repaired router leans even more on search (deadlines, DFS, l2first). A constructive layout argument (Ani Thm 5.3 / Lemma 5.6 drawing + constant-size boards + orthogonal box drawing) is still to be written in B §6; L_gen is evidence only | — | OPEN |
+| F5 no Lua instance emitted | not repaired | — | OPEN |
+| F6 "VERIFIED" for finite tests | not relabelled in the other docs; new labels in B2 §3.7 / L-generator §9 say "on the generated templates" | — | OPEN (text) |
+| F7 prayer row omits divine minions | not edited (C-audit J1 line still to add) | — | OPEN (note) |
+| F8 `hunger=false` blocks only `gethungry` | not edited (J13 should cite eat.c:3167) | — | OPEN (note) |
+| F9 wrap width depends on the data model | not edited | — | OPEN (note) |
+| F10 SC79 citation | unchanged | — | OPEN (note) |
+
+**Where hardness stands after these repairs: CONJECTURE (unchanged).** F1/F2 are repaired in the argument (B2 §3.7)
+and in the router, and the repaired drawing passes every check on the tile templates and one crossover flip. But
+(i) 7 of the 8 crossover templates cannot be routed under the repaired rules yet, so no full generated instance
+exists under them (`--run` blocked), and (ii) F4 (a constructive polynomial layout argument in place of the
+heuristic router) is still open; review 6 asked for F1-F2 **and** F4 before STRONG.
+
