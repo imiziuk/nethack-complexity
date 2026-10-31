@@ -31,7 +31,16 @@ move is a depth-d walk through **one** coin, the tree node being carried by **co
 
 ## 1. Source problem: G6
 
-### 1.1 Definition (VERIFIED as restated verbatim in Hearn 2006 §6.2.1 / Demaine–Hearn CCC 2008 §6.2, via exptime-sources.md §1; original SIAM text PARTIAL, paywalled)
+### 1.1 Definition (VERIFIED against the original, SC79 pp. 155 and 158-159, read 2026-10-31 via CSU Chico ProQuest; copy in Research/archives/, gitignored)
+
+*Original text (SC79 p. 158-159, paraphrased):* a G5 position is (τ, F(X, Y), α) with τ ∈ {1, 2} the player to move (so the
+first mover is part of the input); Player I (II) changes at most one variable of X (Y), passing allowed; "Player I wins
+if the formula F ever becomes true": formally II cannot move from (2, F, α) when F(α) is true, while I can always move.
+G6 = G5 with F in CNF. Win (p. 155): W(G) = ⋃ W_i(G), a player unable to move loses, so I wins only by reaching a
+II-to-move position with F true in finitely many moves; infinite plays are not wins for I. This is exactly the
+definition below, the post-I check of Lemma L1, and B's pre-processing for τ = 2 with F(α₀) true (V-variants.md
+groups 1-2: 0 mismatches with the arena unchanged).
+
 Instance: CNF formula F = C₁ ∧ … ∧ C_m over disjoint variable sets X (Player I) and Y (Player II), and an assignment
 α₀ of X ∪ Y. Players alternate; a move of Player I (II) changes **at most one** variable of X (Y); passing is allowed.
 **Player I wins iff F ever becomes true.** Player II has no win condition; an infinite play is a non-win for I (Chung

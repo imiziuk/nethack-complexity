@@ -42,6 +42,10 @@ with 0 mismatches on 22,800 instances. The tests are VERIFIED for these instance
 ## 1. What the sources say (read this session)
 
 SC79 itself (SIAM J. Comput. 8(2):151-174) is still unread: the SIAM page is paywalled and no open copy was found.
+**Update 2026-10-31:** SC79 read (via CSU Chico ProQuest; pp. 155, 158-159). The original G6 is: τ in the position
+(either first mover), both may pass, ≤ 1 own variable, I wins iff F ever true (II cannot move from a II-to-move position
+with F true), infinite play not a win. That is groups 1-2 of the table (I-first or II-first, pass, post-I check, initial
+position counts), which match with the arena unchanged (II-first uses B's pre-processing). See B-reduction.md §1.1.
 
 | # | Source (read this session) | G6 rules as stated | First mover | Pass | When F is checked | Infinite play |
 |---|---|---|---|---|---|---|
