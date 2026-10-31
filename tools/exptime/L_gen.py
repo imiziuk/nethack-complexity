@@ -916,6 +916,7 @@ PP_L, PD_L = ['A', 'B', 'C', 'E', 'F'], ['A', 'B', 'C', 'D']
 # floor roles
 WALL, WIN, SLOT, MIDR, SCDINT, LOC, CORR, COINC, GXR = range(9)
 JUMP = 30                         # Dijkstra cost of one crossing (CHX / SX), steps cost 1
+WIRE_PEN = int(os.environ.get('LGEN_WIRE_PEN', '4'))    # cost per wire step (box -> location), review 6 F2
 
 
 def gprimes(tiles, level):
@@ -923,7 +924,8 @@ def gprimes(tiles, level):
     out = []
     for t in tiles:
         if level == 1 and t['kind'] == 'scd':
-            out.append(dict(level=1, tile=t['id'], name='scd', scd=t['id'], tcells=[tuple(c) for c in t['cells']],
+            out.append(dict(level=1, tile=t['id'], name='scd', scd=t['id'], ckind='scd',
+                            tcells=[tuple(c) for c in t['cells']],
                             legs=[(f'tile.{p}', t['legs'][f'tile.{p}']['Wt'], t['legs'][f'tile.{p}']['Wb'])
                                   for p in 'OIJ'],
                             locs={p: t['checks'][f'scd.{p}'][0] for p in 'OIJ'}, checks=SCD_CHECKS,
@@ -935,7 +937,7 @@ def gprimes(tiles, level):
                 n, k = cm['name'], cm['kind']
                 L, C = (PP_L, PP_CHECKS) if k == 'pp' else (PD_L, PD_CHECKS)
                 locn = sorted({x for c in C for x in c})
-                out.append(dict(level=2, tile=t['id'], name=n, scd=t['id'] if t['kind'] == 'scd' else None,
+                out.append(dict(level=2, tile=t['id'], name=n, scd=t['id'] if t['kind'] == 'scd' else None, ckind=k,
                                 tcells=[tuple(c) for c in t['cells']],
                                 legs=[(f'{n}.{p}', t['legs'][f'{n}.{p}']['Wt'], t['legs'][f'{n}.{p}']['Wb'])
                                       for p in L],
@@ -1113,6 +1115,17 @@ class Router:
         self.tcid = []                   # chain id (1 = level-1 chain, 2 = level-2 chain) of every trace entry
         self.cur = 1
         self.lastp = {}
+        self.ev_ti = []                  # trace index of every event (parallel to self.events)
+        self.gseg = []                   # one record per routed G' (time order per level): see _gprime
+        self.tree0 = {}                  # (G key, location) -> its edge points (reserved wire roots), reserve_locations
+        # review 6 repair (F1/F2): GX only on legs of FINISHED G's ('finished'); 'own' = the old rule (own stubs
+        # crossable after the two delimiter passes) kept only as the positive control of L_e2e.py.
+        # placement 'ani' = SO_i at b_i, SD_i at a_i, drawn on the chain (repair F2); 'hk' = the old reachability-only
+        # hooks (not drawn), kept only for the positive control.
+        self.rule = os.environ.get('LGEN_GX_RULE', 'finished')
+        self.placement = os.environ.get('LGEN_PLACEMENT', 'ani')
+        self.hookrec = {}
+        self.pcid = {}                   # chain point -> chain id (valid while the point is occupied)
 
     def R(self, c):
         return (2 * c[1] + 1) * self.W + 2 * c[0] + 1
@@ -1202,7 +1215,8 @@ class Router:
             elif self.occ[j] and self.sx_ok(j, d):
                 yield k, JUMP, ('SX', j)
 
-    def dijkstra(self, src, targets, level, own, limit=None, dead=(), pen=None, box=None):
+    def dijkstra(self, src, targets, level, own, limit=None, dead=(), pen=None, box=None, tpen=None):
+        """tpen: extra cost of ENDING at a target (paid once, at the end; not when passing through it)"""
         box = box or self.box
         if box:
             W = self.W
@@ -1214,9 +1228,21 @@ class Router:
         pq = [(0, src)]
         while pq:
             dd, i = heapq.heappop(pq)
+            if i < 0:                                       # virtual sink entry of target -1 - i
+                i = -1 - i
+                path = []
+                while i != src:
+                    path.append((i, prev[i][1]))
+                    i = prev[i][0]
+                return path[::-1], dd
             if dd > dist[i]:
                 continue
-            if i in targets:
+            if i in targets and tpen is not None:
+                if i != src:
+                    heapq.heappush(pq, (dd + tpen.get(i, 0), -1 - i))
+                    if not self.free(i):                    # a side point may end a piece, not be passed
+                        continue
+            elif i in targets:
                 path = []
                 while i != src:
                     path.append((i, prev[i][1]))
@@ -1238,6 +1264,7 @@ class Router:
     def add(self, i):
         assert not self.occ[i] and not self.fl[i], ('chain cell reused', i)
         self.occ[i] = 1
+        self.pcid[i] = self.cur
         last = self.lastp.get(self.cur)
         self.pn[i] = (last, None)
         if last is not None and last in self.pn and self.pn[last][1] is None:
@@ -1252,6 +1279,7 @@ class Router:
         if kind != 'SX':
             self.occ[f] = 1
         self.events.append((kind, f, info if info is not None else self.role[f]))
+        self.ev_ti.append(len(self.trace))
         last = self.lastp[self.cur]
         if last in self.pn and self.pn[last][1] is None:
             self.pn[last] = (self.pn[last][0], f)
@@ -1266,16 +1294,18 @@ class Router:
                 self.gx_used.add((a, c))
                 self.gx_used.add((c, a))
                 self.events.append(('GX', a, self.gx[(a, c)]))
+                self.ev_ti.append(len(self.trace))
                 lp = self.lastp[self.cur]
                 self.pn[lp] = (self.pn[lp][0], None)
             elif jv:
                 self.jump(jv[0], jv[1])
             self.add(i)
 
-    def start(self, i):
-        assert self.free(i), ('start cell not free', i)
+    def start(self, i, side_ok=False):
+        assert self.free(i, side_ok), ('start cell not free', i)
         self.starts.append(len(self.trace))
         self.occ[i] = 1
+        self.pcid[i] = self.cur
         self.pn[i] = (None, None)
         self.trace.append(i)
         self.tcid.append(self.cur)
@@ -1286,10 +1316,13 @@ class Router:
     def snapshot(self):
         return (bytes(self.occ), dict(self.pn), set(self.jumped), set(self.gx_used), len(self.events),
                 len(self.trace), set(self.finished), {k: set(v) for k, v in self.dead.items()}, len(self.starts),
-                dict(self.lastp), self.cur)
+                dict(self.lastp), self.cur, bytes(self.res), len(self.gseg))
 
     def restore(self, sn):
-        occ, pn, jumped, gxu, ne, nt, fin, dead, ns, lastp, cur = sn
+        occ, pn, jumped, gxu, ne, nt, fin, dead, ns, lastp, cur, res, ng = sn
+        self.res[:] = res
+        del self.gseg[ng:]
+        del self.ev_ti[ne:]
         del self.starts[ns:]
         del self.tcid[nt:]
         self.lastp, self.cur = dict(lastp), cur
@@ -1313,6 +1346,7 @@ class Router:
         W = self.W
         I = self.R
         order = ring_order(G, rot, gap)
+        seg0 = (len(self.trace), len(self.events))
         # pass 1 keeps away from G (room for pass 2 and the hooks): penalty on cells within distance rad of G
         pen = {}
         for c in G['gcells']:
@@ -1350,24 +1384,280 @@ class Router:
                 self.jump('Wt' if slot == 0 else 'Wb', f, (G['tile'], ln))
                 self.add(w2)
                 head = w2
-        # hooks: every location reachable from the head (dead own legs may now be crossed: WCX on dead middle
-        # segments); the hook curves themselves are not drawn (their crossings are SX, counted as a bound)
-        hk = {}
+        dl = self.dead[1] | (self.dead[2] if G['level'] == 2 else set())     # legs of G's FINISHED earlier in time
+        if self.placement == 'hk':
+            hk = self._hooks_old(head, G, own, dl)
+            if isinstance(hk, tuple):
+                return None, hk
+        else:
+            head, hk = self._checks(head, G, own, dl)
+            if head is None:
+                return None, hk
+        if G['level'] == 1:
+            self.finished.add(G['scd'])
+        self.dead[G['level']] |= own
+        self.gseg.append(dict(key=(G['tile'], G['name'], G['level']), level=G['level'], cid=self.cur,
+                              t0=seg0[0], t1=len(self.trace), e0=seg0[1], e1=len(self.events), own=set(own),
+                              kind=G.get('ckind'), checks=list(G['checks']), locs=dict(G['locs'])))
+        return head, hk
+
+    def _hooks_old(self, head, G, own, dl):
+        """review-6 state (positive control only): every location reachable from the head; hook curves NOT drawn;
+        with rule 'own' they may cross own stubs (GX) -- the F1 bug. Records the crossing list of every hook path."""
+        W, I = self.W, self.R
+        hk, rec = {}, {}
         for p, c in G['locs'].items():
             i = I(c)
             x, y = i % W, i // W
             tg = {(y + dy) * W + (x + dx) for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1))
                   if 0 <= x + dx < W and 0 <= y + dy < self.H}
             tg = {j for j in tg if self.free(j, True) or j == head}
-            dl = self.dead[1] | (self.dead[2] if G['level'] == 2 else set())
-            path, cost = self.dijkstra(head, tg, G['level'], set(), dead=own | dl)
+            path, cost = self.dijkstra(head, tg, G['level'], set(), dead=(own | dl) if self.rule == 'own' else dl)
             if path is None:
-                return None, ('location not reachable', p)
+                return ('location not reachable', p)
             hk[p] = sum(1 for _, jv in path if jv)
-        if G['level'] == 1:
-            self.finished.add(G['scd'])
-        self.dead[G['level']] |= own
-        return head, hk
+            rec[p] = [self.classify(jv[0], jv[1], own) for _, jv in path if jv]
+        self.hookrec[(G['tile'], G['name'], G['level'])] = rec
+        return hk
+
+    def classify(self, kind, f, own, finished=None):
+        """a crossing of a G' chain piece, as seen by that G' (own = its legs): ('GXo', letter) own stub,
+        ('CHXm', letter) own middle segment, ('GXf',) stub of a leg of a finished G', ('GXp',) stub of a pending leg
+        (never allowed), ('W',) any other floor (main corridor, other legs' middles, SCD interiors), ('SX',)"""
+        if kind == 'SX':
+            return ('SX',)
+        lg = self.leg.get(f)
+        if kind == 'GX':
+            if lg in own:
+                return ('GXo', lg[1].split('.')[-1])
+            fin = finished if finished is not None else (self.dead[1] | self.dead[2])
+            return ('GXf',) if lg in fin else ('GXp',)
+        if kind == 'CHX' and self.role[f] == MIDR and lg in own:
+            return ('CHXm', lg[1].split('.')[-1])
+        return ('W',)
+
+    def reserve_locations(self, Gs):
+        """review 6 repair F2 (Ani placement): the non-floor 4-neighbour points of every check location are the
+        roots of its wire tree (the private corridor from the location to its SO In / SD exit boxes). Reserved from
+        the start, so no chain piece takes them; released (if unused) when the location's own G' is done."""
+        W = self.W
+        for G in Gs:
+            key = (G['tile'], G['name'], G['level'])
+            for p, c in G['locs'].items():
+                i = self.R(c)
+                pts = []
+                for j in (i + 1, i - 1, i + W, i - W):
+                    if not self.fl[j] and not self.occ[j] and not self.res[j] and not self.near[j]:
+                        self.res[j] = 1
+                        pts.append(j)
+                self.tree0[(key, p)] = pts
+
+    def _wire_moves(self, i, level):
+        """wire moves from point i: plain steps to free points (cost 1), or an SX jump over a straight piece of an
+        already drawn chain piece (the wire is that SX's LATER line, used once; cost 4). A level-1 wire may jump
+        only level-1 pieces (level-2 pieces are later in time); every drawn piece is earlier in time otherwise."""
+        W = self.W
+        for d, s in ((1, (1, 0)), (-1, (-1, 0)), (W, (0, 1)), (-W, (0, -1))):
+            j = i + d
+            if self.free(j, True):
+                yield j, 1, None
+            elif self.occ[j] and not self.fl[j] and j not in self.jumped and self.sx_ok(j, s) and \
+                    self.free(j + d, True) and (level == 2 or self.pcid.get(j) == 1):
+                yield j + d, 4, j
+
+    def _wire(self, src, T, level, depth=40):
+        """cheapest wire from the box point src to a point 4-adjacent to the wire tree T: returns (points, jumps)
+        with points = [src, ..., last] (jumped chain points not included) and jumps = the chain points it SX-jumps,
+        in order from the box; None if there is none within `depth`. A wire crosses no floor and no wire, and
+        crosses chain pieces only by SX as the later line; its points stay reserved (no chain ever uses them)."""
+        W = self.W
+        adjT = lambda j: any(abs(j - t) in (1, W) for t in T)
+        if adjT(src):
+            return [src], []
+        dist, prev = {src: 0}, {src: None}
+        pq = [(0, src)]
+        while pq:
+            dd, i = heapq.heappop(pq)
+            if dd > dist[i]:
+                continue
+            if i != src and adjT(i):
+                pts, jumps = [i], []
+                while prev[i] is not None:
+                    i0, jp = prev[i]
+                    if jp is not None:
+                        jumps.append(jp)
+                    pts.append(i0)
+                    i = i0
+                return pts[::-1], jumps[::-1]
+            if dd >= depth:
+                continue
+            for j, w, jp in self._wire_moves(i, level):
+                if j in T:
+                    continue
+                nd = dd + w
+                if nd < dist.get(j, 1 << 30):
+                    dist[j] = nd
+                    prev[j] = (i, jp)
+                    heapq.heappush(pq, (nd, j))
+        return None
+
+    def _region(self, T, level, depth=40):
+        """points a box may sit on, with their wire cost to the tree T (same moves as _wire)"""
+        W = self.W
+        seen = {}
+        pq = []
+        for t in T:
+            for j in (t + 1, t - 1, t + W, t - W):
+                if j not in seen and j not in T and self.free(j, True):
+                    seen[j] = 0
+                    pq.append((0, j))
+        heapq.heapify(pq)
+        while pq:
+            dd, i = heapq.heappop(pq)
+            if dd > seen[i] or dd >= depth:
+                continue
+            for j, w, jp in self._wire_moves(i, level):
+                if j in T:
+                    continue
+                if dd + w < seen.get(j, 1 << 30):
+                    seen[j] = dd + w
+                    heapq.heappush(pq, (dd + w, j))
+        return seen
+
+    def _checks(self, head, G, own, dl):
+        """Ani's Fig. 23 check walks, drawn on the chain (review 6 repair F2). For check i = (a_i, b_i):
+          Out_{i-1} -> Op_i : the chain passes a point j next to the SO_i box p, and p is joined to b_i by a wire;
+          Op_i -> SD_i      : the chain piece ends at a point q (the SD_i box), joined to a_i by a wire;
+          Out_i             : a new chain piece starts at p (SO_i's exit).
+        A wire (see _wire) is a path of reserved wall points from the box to the location's wire tree (its non-floor
+        4-neighbours, then earlier plain wires of the same location): it crosses no floor and no wire, crosses a chain
+        piece only by an SX as the later line, and no chain ever uses or crosses it. So in the sense of review 6 F2
+        both hooks are crossing-free dead ends before t, and only the chain-only edges cross anything. Allowed
+        crossings on them (repair F1): SX over the chain; WCX over own DEAD middle segments (own legs are not passed
+        as `own`, so their MIDR points are crossable); GX on stubs of legs of FINISHED G's only (dl); CHX over other
+        floor. Rule 'own' (positive control) adds the own stubs to the GX set.
+        Bounded backtracking over the contact choices (LGEN_CHECK_TRIES Dijkstra calls per G')."""
+        W = self.W
+        key = (G['tile'], G['name'], G['level'])
+        dx_ = (dl | own) if self.rule == 'own' else dl
+        tree0 = {p: frozenset(self.tree0.get((key, p), ())) for p in G['locs']}
+        allt = {t for v in tree0.values() for t in v}
+        lev = G['level']
+        for t in allt:
+            self.res[t] = 1
+        adj = lambda i: (i + 1, i - 1, i + W, i - W)
+        depth = int(os.environ.get('LGEN_WIRE_DEPTH', '40'))
+        budget = [int(os.environ.get('LGEN_CHECK_TRIES', '200'))]
+        BR = 3                                          # alternatives tried per contact
+        checks = G['checks']
+        fail = ['no checks']
+
+        def reserve(path):
+            for u in path:
+                self.res[u] = 1
+
+        def rec(k, head, tree, used):
+            if k == len(checks):
+                return head, used
+            a, b = checks[k]
+            # ---- Op_k: the chain passes j; the SO box p is a free neighbour of j with a wire to b's tree
+            Rb = self._region(tree[b], lev, depth)
+            J = {}
+            for p, dp in Rb.items():
+                for j in adj(p):
+                    if j != head and j != p and self.free(j, True):
+                        J[j] = min(J.get(j, 1 << 30), dp)
+            for _ in range(BR):
+                if not J or budget[0] <= 0:
+                    break
+                budget[0] -= 1
+                path, cost = self.dijkstra(head, set(J), lev, set(), dead=dx_,
+                                           tpen={j: WIRE_PEN * d for j, d in J.items()})
+                if path is None:
+                    fail[0] = ('no chain edge to Op', k, b)
+                    break
+                sn = self.snapshot()
+                self.commit(path)
+                j = self.lastp[self.cur]
+                J.pop(j, None)
+                got = None
+                for p in sorted((q for q in adj(j) if q in Rb and self.free(q, True)), key=lambda q: (Rb[q], q)):
+                    wp = self._wire(p, tree[b], lev, depth=depth)
+                    if wp is not None:
+                        got = (p, wp)
+                        break
+                if not got:
+                    fail[0] = ('no SO wire', k, b)
+                    self.restore(sn)
+                    continue
+                p, (wp, wjp) = got
+                reserve(wp)
+                wp = wp[1:]
+                tb = min(t for t in tree[b] if abs(t - (wp[-1] if wp else p)) in (1, W))
+                tree_b = tree[b] | set(wp) if not wjp else tree[b]
+                self.events.append(('OP', j, (key, k, p, tb, wp, wjp)))
+                self.ev_ti.append(len(self.trace) - 1)
+                for jp in wjp:
+                    self.jumped.add(jp)
+                    self.events.append(('WSX', jp, (key, k, 'SO')))
+                    self.ev_ti.append(len(self.trace) - 1)
+                tree1 = dict(tree)
+                tree1[b] = tree_b
+                # ---- SD_k: the chain piece ends at q, with a wire to a's tree
+                Ra = self._region(tree1[a], lev, depth)
+                for _ in range(BR):
+                    if not Ra or budget[0] <= 0:
+                        break
+                    budget[0] -= 1
+                    path2, cost2 = self.dijkstra(j, set(Ra), lev, set(), dead=dx_,
+                                                 tpen={q: WIRE_PEN * d for q, d in Ra.items()})
+                    if path2 is None:
+                        fail[0] = ('no chain edge to SD', k, a)
+                        break
+                    sn2 = self.snapshot()
+                    self.commit(path2)
+                    q = self.lastp[self.cur]
+                    Ra.pop(q, None)
+                    wq = self._wire(q, tree1[a], lev, depth=depth)
+                    if wq is None:
+                        fail[0] = ('no SD wire', k, a)
+                        self.restore(sn2)
+                        continue
+                    wq, wjq = wq
+                    wq = wq[1:]
+                    reserve(wq)
+                    last = wq[-1] if wq else q
+                    ta = min(t for t in tree1[a] if abs(t - last) in (1, W))
+                    tree2 = dict(tree1)
+                    if not wjq:
+                        tree2[a] = tree1[a] | set(wq)
+                    self.events.append(('SD', q, (key, k, ta, wq, wjq)))
+                    self.ev_ti.append(len(self.trace) - 1)
+                    for jp in wjq:
+                        self.jumped.add(jp)
+                        self.events.append(('WSX', jp, (key, k, 'SD')))
+                        self.ev_ti.append(len(self.trace) - 1)
+                    # ---- Out_k: a new piece starts at the SO box p
+                    self.res[p] = 0
+                    self.start(p, side_ok=True)
+                    self.events.append(('OUT', p, (key, k)))
+                    self.ev_ti.append(len(self.trace) - 1)
+                    r = rec(k + 1, p, tree2, used | {ta, tb})
+                    if r is not None:
+                        return r
+                    self.restore(sn2)
+                self.restore(sn)
+            return None
+
+        r = rec(0, head, tree0, frozenset())
+        if r is None:
+            for t in allt:
+                self.res[t] = 0
+            return None, fail[0]
+        head, used = r
+        for t in allt - used:                        # roots no wire attaches to are released
+            self.res[t] = 0
+        return head, {'contacts': 3 * len(checks)}
 
     # ---------------- both levels of one block, routed tile by tile (two chain heads)
     VARIANTS = [(1, 0, 3), (-1, 0, 3), (1, 1, 3), (-1, 1, 3), (1, 0, 1), (-1, 0, 1), (1, 0, 6), (-1, 0, 6),
@@ -1419,6 +1709,16 @@ class Router:
                 self.restore(sn2)
             self.restore(sn1)
 
+    def _can_reach(self, h, t, lv):
+        """can the chain head h still get to the lane exit t (geometry only, no commit)?"""
+        self.res[t] = 0
+        try:
+            path, _ = self.dijkstra(h, {t}, lv, set(), dead=self.dead[1] | (self.dead[2] if lv == 2 else set()),
+                                    box=(-10 ** 6, -10 ** 6, 10 ** 6, 10 ** 6))
+        finally:
+            self.res[t] = 1
+        return path is not None or h == t
+
     def joint(self, s1, t1, G1s, s2, t2, G2s):
         """level-1 chain s1 -> every level-1 G' -> t1 and level-2 chain s2 -> every level-2 G' -> t2, both visiting
         the tiles in the same order (so 'SCD finished' at level-1 time = tiles before it in that order)"""
@@ -1457,7 +1757,15 @@ class Router:
             for margin in (24, 60):
                 for tid in cands:
                     sn = self.snapshot()
-                    sol = next(self._tile_solutions(tid, h1, h2, g1.get(tid), g2[tid], margin), None)
+                    sol = None
+                    for cand in self._tile_solutions(tid, h1, h2, g1.get(tid), g2[tid], margin):
+                        # lookahead (review-6 placement draws more of the curve): both heads must still reach
+                        # their lane exits, else the boxes/wires just drawn have sealed a head in
+                        if all(h is None or t is None or self._can_reach(h, t, lv)
+                               for h, t, lv in ((cand[0], t1, 1), (cand[1], t2, 2))):
+                            sol = cand
+                            break
+                        self.last = (tid, 'lookahead', 'a chain head cannot reach its lane exit any more')
                     if sol is not None:
                         got = (tid, sn, h1, h2, sol)
                         break
@@ -1473,7 +1781,7 @@ class Router:
                     print('stuck', stuck, 'cands', cands, 'hist', len(hist), 'near', len(near), 'fails', fails[stuck],
                           self.last, flush=True)
                 if not near or rewinds >= 400 or fails[stuck] > 20:
-                    return None, None, self.last
+                    return None, None, self.last or (stuck, 'no routing found')
                 rewinds += 1
                 # rewind to before the fails[stuck]-th nearest earlier tile (deeper on repeated failure)
                 k = near[-1] if fails[stuck] == 1 else near[max(0, len(near) - 2)]
@@ -1548,6 +1856,8 @@ def _block_template(b, parity, coin, xe, strat):
     cx = xe if xe is not None else int(sum(c[0] for t in b.tiles for c in t['cells']) / sum(len(t['cells']) for t in b.tiles))
     ends = {}
     Gl = {lv: gprimes(b.tiles, lv) for lv in (1, 2)}
+    if Rt.placement == 'ani':
+        Rt.reserve_locations(Gl[1] + Gl[2])
     for level, (yl, delta) in zip((1, 2), lanes):
         if not Gl[level]:
             ends[level] = (None, None)
@@ -1602,13 +1912,16 @@ def render(Rt, x0, y0, x1, y1):
         for x in range(x0, x1):
             i = y * W + x
             if i in ev:
-                row += {'Wt': 'T', 'Wb': 'B', 'SX': 'x', 'CHX': 'c'}.get(ev[i], '?')
+                row += {'Wt': 'T', 'Wb': 'B', 'SX': 'x', 'CHX': 'c', 'GX': 'g', 'OP': 'o', 'SD': 'd',
+                        'OUT': 'u'}.get(ev[i], '?')
             elif Rt.fl[i]:
-                row += '.:sm#LCk'[Rt.role[i]] if Rt.role[i] != CORR else ','
+                row += '.:sm#L,kG'[Rt.role[i]]
             elif Rt.occ[i]:
                 row += '*'
             elif Rt.near[i]:
                 row += 'n'
+            elif Rt.res[i]:
+                row += 'w'
             else:
                 row += ' '
         out.append(row)
@@ -1628,6 +1941,12 @@ def template_record(res):
         out['retries'] = getattr(Rt, 'retries', 0)
         out['validate'] = res.get('validate')
     out['strategy'] = res.get('strategy')
+    if Rt is not None:
+        out['gseq'] = gprime_items(Rt)
+        out['placement'], out['gx_rule'] = Rt.placement, Rt.rule
+        if Rt.hookrec:
+            out['hooks'] = [dict(key=[str(v) for v in k], locs={p: [list(x) for x in v] for p, v in d.items()})
+                            for k, d in Rt.hookrec.items()]
     return out
 
 
@@ -1760,6 +2079,9 @@ def window_reach():
 
 
 _TPL = {}
+# crossover templates on disk: 'r6_' = routed by the review-6-repaired router (Ani placement, GX only on finished
+# legs); the review-6 state's templates are the untagged xtemplate_<fx><fy><p>.json (kept for comparison)
+TPL_TAG = os.environ.get('LGEN_TPL_TAG', 'r6_')
 
 
 def template_for(key, b, parity, coin=None, x_ok=True):
@@ -1769,7 +2091,7 @@ def template_for(key, b, parity, coin=None, x_ok=True):
         return _TPL[k]
     path = None
     if key[0] == 'X':
-        path = os.path.join(OUT, f'xtemplate_{int(key[1])}{int(key[2])}{parity}.json')
+        path = os.path.join(OUT, f'xtemplate_{TPL_TAG}{int(key[1])}{int(key[2])}{parity}.json')
         if os.path.exists(path):
             _TPL[k] = json.load(open(path))
             return _TPL[k]
@@ -1828,7 +2150,8 @@ def assemble(inst, name, x_ok=True):
             tot[ev] += n
         for yl, n in rec['lanes'].items():
             tot['CHX.lane'] += n
-        tot['hook crossings (bound, not drawn)'] += sum(v.get('hooks_jumps', 0) for v in rec['levels'].values())
+        if rec.get('placement') == 'hk':
+            tot['hook crossings (bound, not drawn)'] += sum(v.get('hooks_jumps', 0) for v in rec['levels'].values())
     tot['SX.margin'] += 1           # the descent from t to the bottom strip crosses row 0's bottom lane once
     nscd = sum(1 for T in Bs.tiles.values() if T['kind'] in ('scd', 'scdc'))
     ndio = sum(1 for T in Bs.tiles.values() if T['kind'] == 'dio')
@@ -1845,7 +2168,11 @@ def assemble(inst, name, x_ok=True):
     nchecks = 2 * exp1 + 4 * 2 * (nscd + 20 * Lv.nX) + 2 * 2 * (nscd + 20 * Lv.nX) + 2 * (ndio + 46 * Lv.nX)
     wcx = tot.get('Wt', 0) + tot.get('Wb', 0) + sum(v for k, v in tot.items() if k.startswith('CHX')) + \
         tot.get('GX', 0)
-    res['machinery'] = dict(WCX=wcx, SO=nchecks, SD=nchecks, SX=tot.get('SX', 0) + tot.get('SX.margin', 0))
+    res['contacts_drawn'] = dict(OP=tot.get('OP', 0), SD=tot.get('SD', 0), OUT=tot.get('OUT', 0), expected=nchecks,
+                                 ok=tot.get('OP', 0) == tot.get('SD', 0) == tot.get('OUT', 0) == nchecks)
+    res['coverage_ok'] = res['coverage_ok'] and res['contacts_drawn']['ok']
+    res['machinery'] = dict(WCX=wcx, SO=nchecks, SD=nchecks,
+                            SX=tot.get('SX', 0) + tot.get('WSX', 0) + tot.get('SX.margin', 0))
     res['machinery_blocks_est'] = sum(MACHINE_BLOCKS[k] * v for k, v in res['machinery'].items())
     mb = machinery_boards()
     if mb:          # counts backed by the concrete boards (placement / hook curves still not drawn: M-machinery.md)
@@ -1901,11 +2228,19 @@ def validate(Rt, b):
     W = Rt.W
     errs = []
     tr, cid, starts = [], [], set()
-    for c in sorted(set(Rt.tcid)):                  # concatenate the chains, each in its own order
-        starts.add(len(tr))
-        tr += [p for p, k in zip(Rt.trace, Rt.tcid) if k == c]
-    if len(Rt.starts) != len(set(Rt.tcid)):
-        errs.append(('chain count', len(Rt.starts), len(set(Rt.tcid))))
+    st_idx = set(Rt.starts)
+    nout = sum(1 for e in Rt.events if e[0] == 'OUT')
+    for c in sorted(set(Rt.tcid)):                  # concatenate the chains, each in its own order (pieces kept)
+        first = True
+        for k, (p, kc) in enumerate(zip(Rt.trace, Rt.tcid)):
+            if kc != c:
+                continue
+            if first or k in st_idx:
+                starts.add(len(tr))
+            first = False
+            tr.append(p)
+    if len(Rt.starts) != len(set(Rt.tcid)) + nout:
+        errs.append(('piece count', len(Rt.starts), len(set(Rt.tcid)), nout))
     seen = defaultdict(list)
     for k, p in enumerate(tr):
         seen[p].append(k)
@@ -1955,8 +2290,161 @@ def validate(Rt, b):
     for p in crossed:
         if ev.get(p) not in ('Wt', 'Wb'):
             errs.append(('slot crossed by a non-delimiter', p))
+    rr = validate_rules(Rt, b, seen)
+    errs += rr['errors']
     return dict(ok=not errs, errors=errs[:10], points=len(tr), floor_crossings=sum(1 for p in seen if Rt.fl[p]),
-                self_crossings=sum(1 for p, ks in seen.items() if len(ks) == 2), slots=len(slots))
+                self_crossings=sum(1 for p, ks in seen.items() if len(ks) == 2), slots=len(slots),
+                rules=rr['counts'])
+
+
+def validate_rules(Rt, b, seen=None):
+    """review 6 repairs, replayed independently of the router's dead/finished bookkeeping:
+    (F1) time order = level-1 G's in routing order, then level-2 G's; a GX (WCX on a leg's g-side stub) is allowed
+         only on a leg of a G' that ended EARLIER in that order (never its own G', never a pending one); a CHX on an
+         own middle segment only after the G''s last Wb; never a crossing of the own SCD's interior at level 1;
+    (F2) Ani placement: every check i of every G' has exactly one OP, SD, OUT event, in that order; the SO box p
+         is 4-adjacent to the OP point j and is the first point of the next piece; the SD point q ends a piece; the
+         wire points tb, ta are 4-adjacent to the boxes and to the location cells b_i, a_i and are never chain points;
+         no point of a location's wire is crossed or used by any chain."""
+    W = Rt.W
+    errs = []
+    cnt = defaultdict(int)
+    if seen is None:
+        seen = defaultdict(list)
+        for k, p in enumerate(Rt.trace):
+            seen[p].append(k)
+    segs = sorted(Rt.gseg, key=lambda g: (g['level'], g['e0']))
+    finished = set()
+    inseg = {}
+    for g in segs:
+        for e in range(g['e0'], g['e1']):
+            inseg[e] = g
+    order = {id(g): n for n, g in enumerate(segs)}
+    fin_before = {}
+    for g in segs:
+        fin_before[id(g)] = set(finished)
+        finished |= g['own']
+    all_l1 = {l for g in segs if g['level'] == 1 for l in g['own']}
+    for e, (kind, f, info) in enumerate(Rt.events):
+        g = inseg.get(e)
+        if kind == 'GX' or (kind == 'CHX' and Rt.role[f] == GXR):
+            lg = Rt.leg.get(f)
+            if g is None:            # lane return after the block's last G': everything of that level finished
+                ok = lg in (all_l1 if Rt.tcid[Rt.ev_ti[e]] == 1 else finished)
+            else:
+                ok = lg in fin_before[id(g)] and lg not in g['own']
+            cnt['GX'] += 1
+            if not ok:
+                errs.append(('GX on a leg whose G\' is not finished', lg, g['key'] if g else None))
+                cnt['GX_bad'] += 1
+        if g is None or kind not in ('CHX', 'GX'):
+            continue
+        lg = Rt.leg.get(f)
+        if Rt.role[f] == MIDR and lg in g['own']:
+            last_wb = max(k for k in range(g['e0'], g['e1']) if Rt.events[k][0] == 'Wb')
+            cnt['CHX_own_mid'] += 1
+            if e < last_wb:
+                errs.append(('own middle crossed before the delimiters are done', lg, g['key']))
+        if g['level'] == 1 and Rt.scd.get(f) == g['key'][0] and Rt.role[f] in (SCDINT, MIDR) and \
+                not (lg and lg[1].startswith('tile.')):
+            errs.append(('own SCD interior crossed at level 1', g['key']))
+    if Rt.placement == 'ani':
+        wires = set()
+        adjc = lambda u, v: abs(u - v) in (1, W)
+        for g in segs:
+            evs = [(e, Rt.events[e]) for e in range(g['e0'], g['e1']) if Rt.events[e][0] in ('OP', 'SD', 'OUT')]
+            want = [(kk, i) for i in range(len(g['checks'])) for kk in ('OP', 'SD', 'OUT')]
+            if [(x[1][0], x[1][2][1]) for x in evs] != want:
+                errs.append(('contact order', g['key']))
+                continue
+            tree = {l: {t for t in Rt.tree0.get((g['key'], l), ()) if adjc(t, Rt.R(c))}
+                    for l, c in g['locs'].items()}
+            for i, (a, bb) in enumerate(g['checks']):
+                (_, (_, j, (_, _, p, tb, wp, jpp))), (eq, (_, q, (_, _, ta, wq, jpq))), (eo, (_, po, _)) =                     evs[3 * i: 3 * i + 3]
+                k_out = Rt.ev_ti[eo]
+                ok = po == p and adjc(p, j) and k_out in Rt.starts and Rt.trace[k_out] == p
+                for box, w, t, l, jps in ((p, wp, tb, bb, jpp), (q, wq, ta, a, jpq)):
+                    seq = [box] + list(w) + [t]
+                    used_j = []
+                    for u, v in zip(seq, seq[1:]):
+                        if adjc(u, v):
+                            continue
+                        m = (u + v) // 2                 # an SX jump of the wire over a straight chain point
+                        if abs(u - v) in (2, 2 * W) and m in jps and m in seen and not Rt.fl[m] and                                 {abs(x - m) for x in (Rt.pn[m][0], Rt.pn[m][1])} == ({W} if abs(u - v) == 2 else {1})                                 and (g['level'] == 2 or Rt.pcid.get(m) == 1):
+                            used_j.append(m)
+                        else:
+                            ok = False
+                    ok &= used_j == list(jps) and t in tree[l]
+                    ok &= not any(Rt.fl[u] for u in w)
+                    if not jps:
+                        tree[l] |= set(w)
+                    wires |= set(w) | {t}
+                    cnt['wire_SX'] += len(jps)
+                # q ends its piece: the next trace entry of the same chain starts a piece (it is p)
+                nxt = [k for k in range(Rt.ev_ti[eq] + 1, len(Rt.trace)) if Rt.tcid[k] == Rt.tcid[k_out]][:1]
+                ok &= nxt == [k_out]
+                if not ok:
+                    errs.append(('contact geometry', g['key'], i))
+                cnt['checks'] += 1
+        bad = [t for t in wires if t in seen or Rt.occ[t]]
+        if bad:
+            errs.append(('wire point used by a chain', len(bad)))
+        if any(Rt.near[t] or Rt.fl[t] for t in wires):
+            errs.append(('wire point on floor or in the coin halo',))
+        cnt['wire_points'] = len(wires)
+    return dict(errors=errs, counts=dict(cnt))
+
+
+def gprime_items(Rt):
+    """per routed G' (time order per level): its check-path piece as a list of items in trace order, for the
+    abstract end-to-end test L_e2e.py: ('Wt'|'Wb', letter) delimiters; Router.classify kinds for every other
+    crossing ('GXo', letter) / ('CHXm', letter) / ('GXf',) / ('GXp',) / ('W',); ('SXa', n) / ('SXb', n) the earlier
+    and the later line of the n-th SX whose both lines lie on this piece (SX with another piece: no item, it is a
+    leak-free pass); ('OP'|'SD'|'OUT', i) the contacts of check i."""
+    first = {}
+    for k, p in enumerate(Rt.trace):
+        first.setdefault(p, k)
+    segs = sorted(Rt.gseg, key=lambda g: (g['level'], g['e0']))
+    finished = set()
+    out = []
+    for g in segs:
+        items = []
+        nsx = 0
+        wsx = {}                       # wire SX over a chain point of THIS piece -> its SX id
+        for e in range(g['e0'], g['e1']):
+            kind, f, info = Rt.events[e]
+            if kind == 'WSX':
+                k0 = first[f]
+                if g['t0'] <= k0 < g['t1'] and Rt.tcid[k0] == g['cid']:
+                    wsx[f] = nsx
+                    items.append((k0, ('SXa', nsx)))
+                    nsx += 1
+        for e in range(g['e0'], g['e1']):
+            kind, f, info = Rt.events[e]
+            ti = Rt.ev_ti[e]
+            letter = lambda lg: lg[1].split('.')[-1]
+            if kind in ('Wt', 'Wb'):
+                items.append((ti, (kind, letter(info))))
+            elif kind == 'WSX':
+                pass
+            elif kind in ('OP', 'SD'):
+                # the wire's SX crossings, box -> location; one on another piece is a leak-free pass (no item)
+                items.append((ti, (kind, info[1], [wsx[x] for x in info[-1] if x in wsx])))
+            elif kind == 'OUT':
+                items.append((ti, (kind, info[1])))
+            elif kind == 'SX':
+                k0 = first[f]
+                if g['t0'] <= k0 < g['t1'] and Rt.tcid[k0] == g['cid']:
+                    items.append((k0, ('SXa', nsx)))
+                    items.append((ti, ('SXb', nsx)))
+                    nsx += 1
+            else:
+                items.append((ti, Rt.classify(kind, f, g['own'], finished)))
+        finished |= g['own']
+        items.sort(key=lambda x: x[0])
+        out.append(dict(key=[str(v) for v in g['key']], level=g['level'], kind=g['kind'], checks=g['checks'],
+                        items=[list(it) for _, it in items]))
+    return out
 
 
 # ============================================================ 9. S3: abstract postselection end-to-end (SCD level)
@@ -2115,7 +2603,7 @@ if __name__ == '__main__' and '--xblock' in sys.argv:
     r = block_template(b, par)
     rec = template_record(r)
     rec['secs'] = round(time.time() - t0, 1)
-    json.dump(rec, open(os.path.join(OUT, f'xtemplate_{fx}{fy}{par}.json'), 'w'), indent=1)
+    json.dump(rec, open(os.path.join(OUT, f'xtemplate_{TPL_TAG}{fx}{fy}{par}.json'), 'w'), indent=1)
     print(json.dumps({k: v for k, v in rec.items() if k != 'levels'}),
           {k: (v['gprimes'], v['err'], v['secs']) for k, v in rec['levels'].items()}, flush=True)
 

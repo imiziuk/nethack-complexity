@@ -107,3 +107,56 @@ def precursor_generated():
 
 if __name__ == '__main__':
     precursor_generated()
+
+
+def generated():
+    """review-6 repair check on the GENERATED templates: route the dio and scdc tile blocks (both parities) with
+    L_gen as it is now, read every own-stub GX on each check walk (events after the G''s last Wb, up to SD_i:
+    Out_{i-1} -> Op_i -> SD_i, the curve that brings the walk to a_i under Ani placement), turn each into the
+    endpoint substitution X -> b_i, and compare the clean set with the true one (2 / 3). With the repaired rule
+    there is no own GX, so every clean set must equal the true one."""
+    import random, os
+    import L_gen as L
+    rng = random.Random(1)
+    inst = L.random_instance(rng)
+    N = L.netlist(inst); L.contract(N)
+    Bs = L.Bus(N); Bs.order(); Bs.rows()
+    Lv = L.Level(Bs); Lv.blocks()
+    boards = {'pp': S2.PROTO_PRECURSOR, 'pd': S2.PROTODIODE}
+    checks = {'pp': S2.PP_CHECKS, 'pd': S2.PD_CHECKS}
+    sysm = {k: (K.Board(v), K.explore(K.Board(v))) for k, v in boards.items()}
+    fz = lambda s: tuple((frozenset(a), frozenset(b)) for a, b in s)
+    allok = True
+    for kind in ('dio', 'scdc'):
+        tn = [t for t in Bs.tiles if Bs.tiles[t]['kind'] == kind][0]
+        for par in (0, 1):
+            r = L.block_template(Lv.tb[tn], par)
+            Rt = r['router']
+            for g in sorted(Rt.gseg, key=lambda g: (g['level'], g['e0'])):
+                ck = g['kind']
+                if ck not in boards:
+                    continue
+                evs = Rt.events[g['e0']:g['e1']]
+                last_wb = max(k for k, e in enumerate(evs) if e[0] == 'Wb')
+                subs = {i: set() for i in range(len(g['checks']))}
+                i = 0
+                for kind_, f, info in evs[last_wb + 1:]:
+                    if kind_ == 'SD':
+                        i = info[1] + 1
+                    elif kind_ == 'GX' and Rt.leg.get(f) in g['own'] and i < len(g['checks']):
+                        subs[i].add(Rt.leg[f][1].split('.')[-1])
+                bd, C = sysm[ck]
+                true = [({a}, {b}) for a, b in checks[ck]]
+                weak = [({a} | subs[k], {b}) for k, (a, b) in enumerate(checks[ck])]
+                ct = {B for B in C.states if legal_from(bd, B, fz(true), {})}
+                cw = {B for B in C.states if legal_from(bd, B, fz(weak), {})}
+                allok &= ct == cw
+                print(f'  {kind} parity {par} {g["key"][1]} ({ck}): own-stub GX substitutions '
+                      f'{ {k: sorted(v) for k, v in subs.items() if v} }; clean {len(ct)} -> {len(cw)}')
+    print('generated templates: every clean set = the true one' if allok else
+          'generated templates: SOME CLEAN SET IS WEAKENED (F1)')
+    return allok
+
+
+if __name__ == '__main__' and '--generated' in sys.argv:
+    generated()
