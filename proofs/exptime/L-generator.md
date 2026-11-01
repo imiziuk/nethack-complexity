@@ -10,15 +10,15 @@ this session · **STRONG** = complete argument, not reviewed · **CONJECTURE** �
 | Item | Status | Evidence |
 |---|---|---|
 | Generator: G6 instance → whole level (bus layout, v2 SCD/diode tiles, coin, crossovers, G′ wrappers + Lemma 5.6 chain as a routed planar curve, s, g) | **built** | `L_gen.py --run 20 3`: 20 instances, 14 YES / 6 NO, 77-1,926 crossovers, 2m50s with cached templates |
-| S1 netlist attractor = G6 | **VERIFIED** | 0 mismatches on 20 (seed 3) + 300 (seed 11, 185 YES) + 20 (seed 1) instances |
-| S2 network re-read from the concrete blocks (placed crossover flips) = G6 | **VERIFIED** | 0 mismatches on 20 + 20 instances; NC2 (all crossovers flipped) disagrees on 14/20 |
+| S1 netlist attractor = G6 | **VERIFIED on the tested set** (F6) | 0 mismatches on 20 (seed 3) + 300 (seed 11, 185 YES) + 20 (seed 1) instances |
+| S2 network re-read from the concrete blocks (placed crossover flips) = G6 | **VERIFIED on the tested set** (F6) | 0 mismatches on 20 + 20 instances; NC2 (all crossovers flipped) disagrees on 14/20 |
 | NC1 (write paths without forced closes) | caught | 50/300 mismatches (seed 11); 0/20 on seed 3, so the 20-instance run alone would not show it |
 | Static locality / planarity (block contract incl. diagonals, arm matching, tile-block adjacency, edge trace) | **VERIFIED** | every instance, every block type |
 | Check path: every crossover flip × lane parity (8 templates), every tile block type | **VERIFIED** routed + independent replay (`validate`) ok | crossover: 20 level-1 + 126 level-2 G′, all 604 legs crossed once at Wt and once at Wb, 1,554-1,620 floor crossings, 364-431 SX, 36,364-38,490 chain points, 80-940 s each |
 | Coverage: G′ routed = expected (level 1: SCDs incl. 20 per crossover; level 2: 4 per SCD + 1 per diode) and Wt = Wb = #legs | **VERIFIED** | all 20 instances (e.g. 77 crossovers: 1,545 + 9,743 G′, 52,877 check locations) |
 | Z2 lint + Z1 (D_game `coin_lint`) on the generated coin tile; Z1 distance rule; no chain point within Chebyshev 4 of Z ∪ {E} | **VERIFIED** | all 16 instances with a coin (Z1 ok, Z2 ok, rule ok); 4 instances have n_Y = 0, no coin |
 | Exact per-window boulder reach (C-audit Z1 step 1) | **VERIFIED** | protodiode 4 states / 4 cells, proto-precursor 28 / 8 cells, no port cell reached |
-| S3 SCD-level postselection end to end on the generated network (one leaky SCD per run) | **VERIFIED** (abstract) | 10 instances on seed 3 + 9 on seed 1 (5-34 SCDs): winner = G6 in every run; without the check path the leak wins 2 + 5 NO instances |
+| S3 SCD-level postselection end to end on the generated network (one leaky SCD per run) | **VERIFIED on the tested set** (abstract) | 10 instances on seed 3 + 9 on seed 1 (5-34 SCDs): winner = G6 in every run; without the check path the leak wins 2 + 5 NO instances |
 | Full boulder-level attractor | not attempted | ≈ 10⁴-10⁵ main-layer boulders and ≈ 10⁷-10⁸ machinery boulders (estimate); infeasible |
 | Machinery drawn as boards | **not done** | §7.1: certified planar curve + crossing list only (STRONG) |
 | `crossover.json` diode `checks` off by one | **fixed** | §6; map, routes byte-identical; X_verify ALL AS EXPECTED |
@@ -270,3 +270,32 @@ node and the tile-leg Wb, like the component stubs) so that the level-1 slots an
 junction pockets, and the variant-2 J port moved up the left side away from O; then rebuild the crossover, update
 P, and re-route all 8 flips.
 
+
+## 10. Review-6 round 2 (r6b, 2026-10-31): tile-leg stubs, template library, constructive layout (F4)
+
+### 10.1 What changed
+- **Tile-leg stubs** (`X_build.scd_tile`, `SCD_TV` = 3, env `XB_SCD_TV`): tile.O / tile.I / tile.J get 3 g-side stub
+  cells between the gs junction (gsO / gsI / gsJ) and the tile leg's Wb, built by the same `_TB.sleg` as the component
+  stubs; the SCD locations scd.O / I / J are the stubs' last cells. In L_gen the stub cells and links have role GXR on
+  leg tile.X and the stubbed g-side is LOC, so the level-1 delimiters and box spots of every SCD sit 3 cells outside
+  the junction pockets (gsO between tog.E, the D pocket and prec's spread A leg; gsJ between prec.F / d2.B).
+- **Variant-2 J port** at the top-left corner (approach: right side up, along the top, 2 cells down the left side)
+  instead of 4 cells above O; the left side between J and O is now empty.
+- **Reproducibility.** `XB_SCD_GEOM=r6a` (tv = 0, old J port) rebuilds the round-1 tile; checked cell for cell (cells,
+  owners, ports) against the round-1 `X_build` for variants 0-2; (sv, sp, tv, geom) = (0, 2, 0, r6a) is still the r5 tile.
+  Round-1 crossover kept as `build/xover/*_r6a.*`, its 011 template as `build/lgen/xtemplate_r6a_011.json`.
+- **Bug found (round 1): crossover legs lost their stubs.** `X_build.main` serialised `legs` without `stub` / `port`, so
+  in every crossover template of round 1 the component stubs were SCD interior (not GXR) and the stubbed g-sides were
+  not LOC: `validate_rules` could not see a GX on a crossover stub. Fixed (json legs carry `stub`, `port`); the round-1
+  result "011 routed, rules clean" is superseded by the r6b runs below.
+- **Junction comb** (`L_gen`, `LGEN_JN=bar`, default; `fan` = old): one horizontal bar under all n port columns and one
+  straight tooth per port. The old nested fan used turn row P − 20 − 2j for its j-th left-goer, which meets lane row 2
+  for n ≳ 560; the bar uses the same rows for every n (checked: `check_block`, `check_tile_block` and the lane
+  assertion for n = 1, 2, 3, 13, 600).
+- **Template library on disk** (`template_for`): the G′-carrying tile templates are cached like the crossover
+  templates (`build/lgen/ttemplate_r6_<kind>_<parity>.json`), every template carries `floor_hash` (sha256 of the
+  block's floor cells and placed tiles; boulders ignored, the router never reads them) and a cached template is used
+  only if the block's hash matches. A G′-carrying tile block outside {scdc 4P, dio 2P with all top arms} fails an
+  assertion instead of starting a search.
+- New crossover: `X_build` seed 2: **556 × 560**, 66 tiles, 166 boulders (77 s); macro pitch **P = 587, MID = 293**
+  (smallest odd P with the old 4-cell margin under every flip).

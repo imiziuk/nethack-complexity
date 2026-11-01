@@ -82,7 +82,7 @@ Labels: **VERIFIED** = lines read this session, direct reading · **STRONG** = c
 ## 2. Invariants, coin RNG audit, Lemma S under R3
 
 ### 2.1 Invariants J1-J13 (every reachable state of every instance obeying Z1-Z2; any commands, any outcomes)
-- **J1 = I1 no monsters** (unchanged; teleport/boots create none).
+- **J1 = I1 no monsters** (unchanged; teleport/boots create none). Review 6 F7: the only other route to a monster is prayer anger — praying too soon gives `p_type` 0 → `gods_upset` → `angrygods` (pray.c:2316-2321, 1436-1442), whose case 7-8 calls `summon_minion` (pray.c:760-771; an elemental for a neutral god, minion.c:207-208); `makemon` returns NULL whenever `iflags.debug_mongen` is set (makemon.c:1168; set by `mongen=false`, nhlua.c:1470-1481), so J1 holds on that route too.
 - **J2 = I2 loadstone in inventory** (unchanged).
 - **J3 boots**: once worn they stay worn: Take-off/`A` refused by `cursed()` "You can't. They are cursed." (do_wear.c:
   1893-1915); uncursing needs TROUBLE_FUMBLING (minor, pray.c:249-252, fixed at pray.c:526-531) ⇒ prayer action ≥ 3
@@ -117,7 +117,7 @@ Labels: **VERIFIED** = lines read this session, direct reading · **STRONG** = c
   (§2.4).
 - **J12 = I8** XL1 human, not polymorphed/levitating/flying/blind-by-source/stunned/confused (teleport cures nothing
   relevant: `make_blinded(0L)` only when not already blinded, teleport.c:860-861).
-- **J13 = I9 hunger inert**: `morehungry` in teleport.c only on `^T` without a trap (teleport.c:1159-1160): unreachable.
+- **J13 = I9 hunger inert** (review 6 F8: `hunger=false` sets `iflags.debug_hunger`, which is tested only in `gethungry`, eat.c:3167; `morehungry`, eat.c:3283, still works, so J13 rests on its callers being unreachable in W+C: spells spell.c:1367, jumping apply.c:2121/2161, vomiting timeout.c:245, fountains/sit/eat absent). `morehungry` in teleport.c runs only on `^T` without a trap (teleport.c:1159-1160): unreachable.
 
 ### 2.2 The coin path: every RNG call (VERIFIED, read in order)
 Step onto T (hero Fumbling, T seen, not levitating): `domove` → `dotrap`: `nomul(0)`; not fixed-dest (no teledest);

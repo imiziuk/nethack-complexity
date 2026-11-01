@@ -279,7 +279,7 @@ outcomes, i.e. options outside the ideal set that never reach g; C must confirm 
 the new whitelist items: TELEP_TRAP via #untrap, wearing/removing cursed boots).
 
 ### 5.4 T2 statement and proof
-**T2 (cap removed).** In the turn-cap-deleted, wrapping-counter game of spec Rev. 4 (unmodified 5.0.0 would end the
+**T2 (cap removed).** (Data model, review 6 F9: `svm.moves` is `long`, so the wrap is at 2^63 under LP64 and at 2^31 under LLP64 (Windows); the theorem is stated for either, with SC3 = two's-complement wrap of signed `long` taken as part of the spec, since it is UB in ISO C. N1's dead phase and the Z4 waits are correct for both widths, C-audit §2.6.) In the turn-cap-deleted, wrapping-counter game of spec Rev. 4 (unmodified 5.0.0 would end the
 game at `moves` ≥ 10^9, allmain.c:253), under G1-G5 (+ §5.2 if checkable), C-1..C-4 and design rules Z1-Z4
 (C-audit §1; Z1 in its exact-reach form): the hero has an R3-winning strategy in I_F ⇔ he wins 𝒢_F.
 *Proof sketch (STRONG modulo the assumptions).* (⇐) H_σ realized via G4: corridors are boulder-free walks, gadget

@@ -10,6 +10,8 @@ Imports B2_ani, A_core, A2_scd, X_build read-only. Labels: **VERIFIED** = machin
 
 ## 0. Results
 
+Review 6 F6 (label scope): the SO / SX / WCX rows below are **VERIFIED modulo congruence**: they compose verified base boards, and rely on two standard facts (bisimulation is a congruence for Net2 composition; nested = flat exploration) that were machine-checked on MSC only (the flat SD run did not finish).
+
 | Board | Size (cells) | Boulders | Base copies (WMC/NR/WO) | Exact port behaviour vs ideal (Fig. 19) | Map checks | Concrete play |
 |---|---|---|---|---|---|---|
 | **SD** dicrumbler | 44 × 17 | 14 | 1 / 2 / 1 | **VERIFIED** SOUND + COMPLETE (5,306 states, 3 bisim. classes) | **VERIFIED** | c1 X→Y (140 moves); c2 30k moves |

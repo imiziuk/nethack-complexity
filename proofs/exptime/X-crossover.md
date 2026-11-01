@@ -64,7 +64,7 @@ boundary; its internal corridors tT, T, O, X, Y, I, J, cd1, cd2 are disjoint, ch
 - **c1 scripted crossings**: plan by BFS in the ideal network on the map wiring, realise each gadget traversal by BFS
   inside its tile (goal: target port zone, tile state related to the target ideal state by the COMPLETE relation),
   corridors by BFS. Sequence: A1→B1, A2→B2 twice, then A1→B1 ×2, A2→B2 ×2. Every crossing reaches its exit.
-- **c2 random walk** (`--moves 100000`, seed 7, after c1): episodes start at a random corridor cell or (30%) an
+- **c2 random walk** (a test, VERIFIED on the tested set only, review 6 F6; `--moves 100000`, seed 7, after c1): episodes start at a random corridor cell or (30%) an
   external port, uniform over legal non-breaking moves, ~1,500 moves each and ending on a corridor cell. 100,000
   committed moves in 27 s; 3,162 component traversals and 1,351 tile traversals checked against their systems, 1,004
   external returns checked (all bounces: a random walk never completes a 46-traversal crossing, which is why c1 exists),

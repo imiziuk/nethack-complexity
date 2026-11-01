@@ -332,7 +332,15 @@ def main_tiles():
     t0 = time.time()
     ok = True
     print('== repaired generator (Ani placement, GX only on finished legs)', flush=True)
-    rec_new = route_tiles({'LGEN_PLACEMENT': 'ani', 'LGEN_GX_RULE': 'finished'})
+    if os.environ.get('LE2E_LIBRARY', '1') == '1':
+        # r6b: the repaired tile templates ARE the library (build/lgen/ttemplate_r6_<kind>_<parity>.json, the ones
+        # L_gen.assemble uses, floor hash checked there); LE2E_LIBRARY=0 re-routes them here instead
+        rec_new = {(kind, par): json.load(open(os.path.join(OUT, f'ttemplate_r6_{kind}_{par}.json')))
+                   for kind in ('dio', 'scdc') for par in (0, 1)}
+        print('   (library templates ttemplate_r6_*: strategies', {k: v.get('strategy') for k, v in rec_new.items()},
+              ')', flush=True)
+    else:
+        rec_new = route_tiles({'LGEN_PLACEMENT': 'ani', 'LGEN_GX_RULE': 'finished'})
     for key, rec in rec_new.items():
         own_gx = sum(1 for g in rec['gseq'] for it in g['items'] if it[0] in ('GXo', 'GXp'))
         print(f'   {key}: items {summarize_items(rec["gseq"])}; own/pending GX {own_gx}; validate '

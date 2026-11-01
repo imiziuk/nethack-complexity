@@ -140,7 +140,7 @@ hero cell after every key. `report` then replays the model and branches on natur
 | v2 SCD tile, variant 1 | 21×43 | 43 new / 24 | 952 | 1,536 | 120 + 3,000 (17,028 pieces) | 19,636 | 562,293 | **0** | VERIFIED |
 | v2 SCD tile, variant 2 | 19×37 | 11 new / 24 | 320 | 1,536 | 118 + 3,000 (14,012 pieces) | 15,986 | 357,374 | **0** | VERIFIED |
 | v2 diode tile | 4×11 | 4 new / 4 | 32 | L=4 from 2 ports: 8,192 | 60 + 12 | 8,296 | 56,978 | **0** | VERIFIED |
-| coin tile [A # T # B] (L_gen.COIN) | 9×10 | 10 / 0 | 139 (20 trials per T entry) | L=4 from e, a, b: 12,288 | 60 + 122 (120 × e→E→T→landing→a) | 12,609 | 75,555 | **0** (landings A 73, B 87, T 0) | VERIFIED |
+| coin tile [A # T # B] (L_gen.COIN) | 9×10 | 10 / 0 | 139 (20 trials per T entry) | L=4 from e, a, b: 12,288 | 60 + 122 (120 × e→E→T→landing→a) | 12,609 | 75,555 | **0** (landings A 73, B 87, T 0) | VERIFIED on the tested set (the ∀-claim "never T, never outside Z" rests on the C-audit §2.2 source reading, review 6 F6) |
 | WMC (Fig. 32) | 5×7 | 112 / 7 | 896 | L=4 from 3 ports: 12,288 | 60 + 42 | 13,286 | 74,299 | **0** | VERIFIED |
 | NR (Fig. 32) | 10×6 | 2,100 / 16 | 16,800 | 8,192 | 60 + 2,142 | 27,194 | 101,619 | **0** | VERIFIED |
 | WO (Fig. 32) | 7×10 | 3,112 / 19 | 24,896 | 12,288 | 60 + 2,353 | 39,597 | 124,736 | **0** | VERIFIED |

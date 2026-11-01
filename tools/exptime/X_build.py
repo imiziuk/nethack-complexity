@@ -550,16 +550,27 @@ def scd_tile_r5(variant=0):
 # to SCD_SP columns apart; raw gadget windows, the node structure and the leg contract are unchanged.
 SCD_SV = int(os.environ.get('XB_SCD_SV', '3'))
 SCD_SP = int(os.environ.get('XB_SCD_SP', '6'))
+# review 6 round 2 (r6b, 2026-10-31): g-side stubs on the TILE legs too (tile.O / tile.I / tile.J get SCD_TV stub cells
+# between the gs junction and the tile-leg Wb, same mechanism as the component legs), and in variant 2 the J port sits
+# at the top-left corner (approach 2 cells down the left side) instead of just above O. XB_SCD_GEOM=r6a = round-1
+# geometry (SCD_TV = 0, J port 4 above O), kept for reproducibility.
+SCD_GEOM = os.environ.get('XB_SCD_GEOM', 'r6b')
+SCD_TV = int(os.environ.get('XB_SCD_TV', '0' if SCD_GEOM == 'r6a' else '3'))
 
 
-def scd_tile(variant=0, sv=None, sp=None):
+def scd_tile(variant=0, sv=None, sp=None, tv=None, geom=None):
     """v2 SCD tile, review-6 scaled (see scd_tile_r5 for the structure: Fig. 37 1-toggle + precursor + 2 protodiodes,
     every L' location on its own LEG-cell hallway, tile ports O, I, J on the left in variant order).
     sv = g-side stub length of every component leg (the g-side = L_gen check location is the stub's last cell);
     sp = column distance of the spread legs (toggle/precursor A from B, d1.A from d1.B, d2.B from d2.A,
-    d1.C from d1.D, d2.D from d2.C). sv = 0, sp = 2 is exactly scd_tile_r5."""
+    d1.C from d1.D, d2.D from d2.C). sv = 0, sp = 2 is exactly scd_tile_r5.
+    tv = g-side stub length of the tile legs tile.O / tile.I / tile.J (scd.O/I/J location = the stub's last cell);
+    geom 'r6b' puts the variant-2 J port at the top-left corner, 'r6a' 4 cells above O (round 1).
+    (sv, sp, tv, geom) = (0, 2, 0, 'r6a') is exactly scd_tile_r5; (3, 6, 0, 'r6a') is the round-1 (r6a) tile."""
     sv = SCD_SV if sv is None else sv
     sp = SCD_SP if sp is None else sp
+    geom = SCD_GEOM if geom is None else geom
+    tv = (0 if geom == 'r6a' else SCD_TV) if tv is None else tv
     assert sp >= 2 and (sv >= 1 or sp == 2)
     L = LEG
     b = _TB()
@@ -583,7 +594,7 @@ def scd_tile(variant=0, sv=None, sp=None):
     # tog.E -> gsO -> tile leg -> port O
     gsO = b.sleg('tog.E', cp[('tog', 'E')], D, 'gsO', sv)
     b.junction('gsO', [gsO], [('tog', 'E'), ('tile', 'O')])
-    o_port = b.leg('tile.O', gsO, Lf, 'O')
+    o_port = b.sleg('tile.O', gsO, Lf, 'O', tv)
     xL = o_port[0] - max(0, sp - 3)                               # left edge column of the approaches (2 left of tog A')
     # T = tog.F + prec.A/B/C
     t = b.sleg('tog.F', cp[('tog', 'F')], D, 'T', sv)
@@ -600,20 +611,21 @@ def scd_tile(variant=0, sv=None, sp=None):
     # I = d1.A (spread left) -> gsI -> tile leg -> port I ; J = d2.B (spread right) -> gsJ -> tile leg -> port J
     gsI = b.sleg('d1.A', cp[('d1', 'A')], U, 'gsI', sv, -(sp - 2))
     b.junction('gsI', [gsI], [('d1', 'A'), ('tile', 'I')])
-    b.tport('I', b.leg('tile.I', gsI, Lf, 'I'), Lf, 'tile.I')
+    b.tport('I', b.sleg('tile.I', gsI, Lf, 'I', tv), Lf, 'tile.I')
     gsJ = b.sleg('d2.B', cp[('d2', 'B')], U, 'gsJ', sv, sp - 2)
     b.junction('gsJ', [gsJ], [('d2', 'B'), ('tile', 'J')])
-    jx, jy = b.leg('tile.J', gsJ, R, 'J')     # first cell beyond the leg
+    jx, jy = b.sleg('tile.J', gsJ, R, 'J', tv)     # first cell beyond the leg
     ycd = dy0 + 2 + sv + L + 1                # diode C/D junction row
     ybot = ycd + 2
     ytop = ty - sv - L - 3                    # free row above the tT junction
     if variant in (0, 1):                     # J: down the right side, left along the bottom, port bottom-left
         appr = [(jx, y) for y in range(jy, ybot + 1)] + [(x, ybot) for x in range(jx - 1, xL, -1)]
         b.tport('J', (xL, ybot), Lf, 'tile.J', appr)
-    else:                                     # J: up the right side, left along the top, down to just above O
+    else:                                     # J: up the right side, left along the top, down the left side
+        yj = o_port[1] - 4 if geom == 'r6a' else ytop + 2   # r6a: just above O; r6b: at the top-left corner
         appr = ([(jx, y) for y in range(jy, ytop - 1, -1)] + [(x, ytop) for x in range(jx - 1, xL - 1, -1)] +
-                [(xL, y) for y in range(ytop + 1, o_port[1] - 4)])
-        b.tport('J', (xL, o_port[1] - 4), Lf, 'tile.J', appr)
+                [(xL, y) for y in range(ytop + 1, yj)])
+        b.tport('J', (xL, yj), Lf, 'tile.J', appr)
     if variant == 1:                          # O: up, right along the top, down the far right, left along the bottom
         xr, yb = jx + 2, ybot + 4
         appr = ([(x, o_port[1]) for x in range(o_port[0], xL - 1, -1)] +
@@ -635,7 +647,7 @@ def scd_tile(variant=0, sv=None, sp=None):
     T = Tile('scd', b.cells, b.ports, b.comps, checks, W, H, b.legs, b.nodes)
     T.owner, T.cport = b.owner, b.cport
     T.variant = variant
-    T.scale = (sv, sp)
+    T.scale = (sv, sp, tv, geom)
     check_tile_legs(T)
     check_tile_spacing(T)
     return T
@@ -1381,7 +1393,8 @@ def main():
                    for cn, ck, (ox, oy) in tile.comps],
             checks={c: [T['g'](z) for z in zs] for c, zs in tile.checks.items()},
             legs={l: dict(gside=T['g'](Lg['gside']), cells=[T['g'](c) for c in Lg['cells']], Wb=T['g'](Lg['Wb']),
-                          mid=[T['g'](c) for c in Lg['mid']], Wt=T['g'](Lg['Wt']), node=Lg['node'])
+                          mid=[T['g'](c) for c in Lg['mid']], Wt=T['g'](Lg['Wt']), node=Lg['node'],
+                          port=T['g'](Lg.get('port', Lg['gside'])), stub=[T['g'](c) for c in Lg.get('stub', [])])
                   for l, Lg in tile.legs.items()})
     out['tile_version'] = 2
     out['leg_len'] = LEG

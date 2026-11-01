@@ -422,7 +422,8 @@ class Bus:
 # ============================================================ 5. concrete blocks (P x P cells; tiles k*P x P)
 import X_build as XB
 
-P, MID = 597, 298                     # macro pitch (fits the 569 x 550 review-6-scaled crossover under every flip; r5: 469, 234)
+P, MID = 587, 293                     # macro pitch (fits the 556 x 560 r6b crossover under every flip, margin >= 4; r6a: 597, 298 for 569 x 550; r5: 469, 234)
+JN_GEOM = os.environ.get('LGEN_JN', 'bar')     # junction comb: 'bar' (r6b, uniform in the degree) or 'fan' (r5/r6a)
 LANES = (2, P - 3)                    # chain lane rows inside every block (top, bottom)
 XDIR = os.path.join(ROOT, 'build', 'xover')
 SIDE_CELL = {'T': (MID, 0), 'B': (MID, P - 1), 'L': (0, MID), 'R': (P - 1, MID)}
@@ -658,6 +659,18 @@ def build_tile_block(Bs, tn):
                     lp['Z' + ch] = tr((x, y))
         b.coin = dict(T=lp['ZT'], A=lp['ZA'], B=lp['ZB'], E=tr((6, 7)), XA=tr((4, 5)), XB=tr((8, 5)))
         fan(b, sorted([(p, lp[p], tgt[p]) for p in ('E', 'A', 'B')], key=lambda v: v[1][0]), own_of)
+    elif k == 'jn' and JN_GEOM == 'bar':
+        # r6b (F4): uniform comb for every degree n: one horizontal bar under all n port columns, one straight tooth
+        # per port up to the top border; no nested fan, so no row of the block depends on n (the fan's j-th turn row
+        # P - 20 - 2j would reach lane row 2 for n > ~560). LGEN_JN=fan restores the old fan comb.
+        n = len(ports)
+        by = base_y - 2
+        xs = [i * P + MID for i in range(n)]
+        b.line((xs[0], by + 2), (max(xs[-1], xs[0] + 2), by + 2), ('jn', tn))
+        for i, p in enumerate(ports):
+            if tgt[p] is not None:
+                b.line((xs[i], 0), (xs[i], by + 1), own_of(p))
+        b.jn_cell = (xs[0], by + 2)                              # start cell / t's chain attachment (below it)
     elif k == 'jn':
         n = len(ports)
         bx, by = (kc * P) // 2 - (n - 1), base_y - 2
@@ -2192,20 +2205,53 @@ _TPL = {}
 TPL_TAG = os.environ.get('LGEN_TPL_TAG', 'r6_')
 
 
+def floor_hash(b):
+    """geometry key of a block for the router: its floor cells (boulders ignored: the router reads only floor),
+    owners' roles and placed tiles. Two blocks with equal hash get the same routing."""
+    import hashlib
+    h = hashlib.sha256()
+    h.update(repr(sorted(b.floor)).encode())
+    h.update(repr([(t['kind'], sorted(map(tuple, t['cells'])), sorted(t['legs'])) for t in b.tiles]).encode())
+    return h.hexdigest()[:16]
+
+
+# F4 (r6b): the finite template library. Only blocks with placed tiles (G's) need a routed check path; over 320
+# instances (seeds 3, 11) these are exactly the scdc (4P wide) and dio (2P wide) tile blocks with all their top arms,
+# and the 4 crossover flips, each in 2 parities: 12 templates, routed once and stored on disk. Every other block type
+# (E, V, H, BL, BR, jn of any width, coin) carries only the two straight lanes (asserted in _block_template).
+LIBRARY_TILES = {('scdc', 4), ('dio', 2)}
+
+
 def template_for(key, b, parity, coin=None, x_ok=True):
-    """cached block template (crossover templates also cached on disk, build/lgen/xtemplate_<fx><fy><parity>.json)"""
+    """cached block template (crossover templates also cached on disk, build/lgen/xtemplate_<fx><fy><parity>.json;
+    r6b: the G'-carrying tile templates too, build/lgen/ttemplate_<tag><kind>_<parity>.json, checked against the
+    block's floor hash)"""
     k = (key, parity)
     if k in _TPL:
         return _TPL[k]
     path = None
+    if key[0] == 'tile' and b.tiles:
+        full = all(('T', i) in b.arms for i in range(b.W // P))
+        assert (key[1], b.W // P) in LIBRARY_TILES and full, ("G'-carrying tile block outside the library", key)
+        path = os.path.join(OUT, f'ttemplate_{TPL_TAG}{key[1]}_{parity}.json')
+        if os.path.exists(path):
+            rec = json.load(open(path))
+            assert rec.get('floor_hash') == floor_hash(b), ('library tile template geometry mismatch', key, parity)
+            _TPL[k] = rec
+            return rec
+        if not x_ok:
+            return None
     if key[0] == 'X':
         path = os.path.join(OUT, f'xtemplate_{TPL_TAG}{int(key[1])}{int(key[2])}{parity}.json')
         if os.path.exists(path):
-            _TPL[k] = json.load(open(path))
-            return _TPL[k]
+            rec = json.load(open(path))
+            assert rec.get('floor_hash') == floor_hash(b), ('crossover template geometry mismatch', key, parity, path)
+            _TPL[k] = rec
+            return rec
         if not x_ok:
             return None
     rec = template_record(block_template(b, parity, coin))
+    rec['floor_hash'] = floor_hash(b)
     if path:
         json.dump(rec, open(path, 'w'), indent=1)
     _TPL[k] = rec
@@ -2243,7 +2289,10 @@ def assemble(inst, name, x_ok=True):
             b = Lv.tb[k[1]]
             T = Bs.tiles[k[1]]
             key = ('tile', T['kind'], b.W, tuple(sorted(str(a) for a in b.arms)))
-            rec = template_for(key, b, par, getattr(b, 'coin', None))
+            rec = template_for(key, b, par, getattr(b, 'coin', None), x_ok=x_ok)
+            if rec is None:
+                missing.append((key, par))
+                continue
         elif k[0] == 'X':
             rec = template_for(k, Lv.lib[k], par, x_ok=x_ok)
             if rec is None:
@@ -2730,6 +2779,7 @@ if __name__ == '__main__' and '--xblock' in sys.argv:
     b = x_block(bool(fx), bool(fy))
     r = block_template(b, par)
     rec = template_record(r)
+    rec['floor_hash'] = floor_hash(b)
     rec['secs'] = round(time.time() - t0, 1)
     json.dump(rec, open(os.path.join(OUT, f'xtemplate_{TPL_TAG}{fx}{fy}{par}.json'), 'w'), indent=1)
     print(json.dumps({k: v for k, v in rec.items() if k != 'levels'}),
