@@ -1515,7 +1515,8 @@ class Router:
                 out.append(j)
         for G in G1s:
             key = (G['tile'], G['name'], G['level'])
-            if os.environ.get('LGEN_L1_KEEP_SLOTS', '0') == '1':      # too strong: level 2 then fails (off)
+            if os.environ.get('LGEN_L1_KEEP_SLOTS', '0') == '1' or getattr(self, 'keep_slots', False):
+                # all tiles: too strong (level 2 then fails, round 1); targeted (LGEN_L1_KEEP_TILES): on
                 for ln, wt, wb in G['legs']:
                     sx_, sy_ = (wt[0] > wb[0]) - (wt[0] < wb[0]), (wt[1] > wb[1]) - (wt[1] < wb[1])
                     d = -sy_ + sx_ * W                  # side direction (perpendicular to the leg)
@@ -1993,6 +1994,12 @@ def _block_template(b, parity, coin, xe, strat):
         first = 1 if strat == 'l1first' else 2
         logs, err = {}, None
         keep = Rt.keepout_l1(Gl[1]) if first == 2 and os.environ.get('LGEN_L1_KEEP', '0') == '1' else []
+        if first == 2 and os.environ.get('LGEN_L1_KEEP_TILES'):
+            # r6b: targeted level-1 keep-out, only around the SCDs named (those where a plain l2first run's level 1
+            # got stuck); everything else as in l2first
+            kt = set(os.environ['LGEN_L1_KEEP_TILES'].split(','))
+            Rt.keep_slots = True
+            keep = Rt.keepout_l1([G for G in Gl[1] if G['tile'] in kt])
         for lv in (first, 3 - first):
             if lv == 1:
                 for t in keep:                  # release the level-1 keep-out before the level-1 curve is drawn

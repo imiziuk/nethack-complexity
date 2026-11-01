@@ -207,8 +207,10 @@ is Ani's own (Fig. 23) and is what `L_gen.Router._checks` draws; `L_gen.validate
 
 **Notation.** For a component (or, at level 1, an SCD composite) c with G′(c): a *leg* of location l is the hallway
 port(l) – stub – g-side – Wb – mid – Wt – outer node; the *stub* (port .. g-side) is empty in the r5 tiles and
-SCD_SV = 3 cells (bent where two ports are spread) in the review-6-scaled SCD tile (X_build.scd_tile); the g-side
-is the check location the wires attach to. The *region* R(c) = c's window ∪ every leg's stub and g-side ∪ its hidden
+SCD_SV = 3 cells (bent where two ports are spread) in the review-6-scaled SCD tile (X_build.scd_tile); since r6b the
+SCD's own tile legs tile.O / tile.I / tile.J have stubs too (SCD_TV = 3 cells from the gs junction to the g-side;
+L-generator.md §10.1), so at level 1 the SCD composite's locations O, I, J are the tile-leg stubs' last cells and
+the stubs belong to R(SCD); the g-side is the check location the wires attach to. The *region* R(c) = c's window ∪ every leg's stub and g-side ∪ its hidden
 pockets ∪ its *wires* (below). M = all main-game floor (everything that is not a chain corridor or a machinery
 interior); R(c) ⊆ M. The *chain* = the corridors of the check path between machinery gadgets, walked in the Lemma 5.6
 time order (level 1, then level 2; inside G′(c): pass 1 (Wt), pass 2 (Wb), then the check walks).

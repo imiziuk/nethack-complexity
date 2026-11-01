@@ -299,3 +299,70 @@ P, and re-route all 8 flips.
   assertion instead of starting a search.
 - New crossover: `X_build` seed 2: **556 × 560**, 66 tiles, 166 boulders (77 s); macro pitch **P = 587, MID = 293**
   (smallest odd P with the old 4-cell margin under every flip).
+
+### 10.3 Constructive layout argument (review 6 F4) — STRONG
+
+Review 6 F4: polynomial time rested on a router with deadlines, budgets and rewinds that may fail on a new
+instance. The answer is that **no routing search runs on the instance**: every search happened once, on a fixed
+finite set of blocks, and its output is a constant of the reduction.
+
+**Lemma Lib (finite library).** Every block of every generated level is one of: E, V, H, BL, BR (P × P); a crossover
+flip X(fx, fy) (P × P, 4 flips); a tile block of kind scdc (4P × P), dio (2P × P), coin (3P × P) or jn (nP × P, any
+n ≥ 1). Only scdc, dio and X contain placed tiles (components with G′s); E, V, H, BL, BR, coin and jn contain none.
+*Proof.* `Level.__init__` / `Level.blocks` / `build_tile_block` (§1 step 4) produce exactly these kinds; tile kinds
+come from `Bus` (`TILE_PORTS`: scdc = Oin, Oout, I, J; dio = 2 ports; coin = E, A, B; jn = one port per edge end). ∎
+For a G′-carrying tile block the geometry is a closed formula of (kind, used ports): the tile body (`XB.scd_tile(0)`
+under symmetry 7, or the diode tile) centred at a fixed offset, and one fan stub per USED port to that port's column
+midline. Every port of an scdc / dio tile is used whenever `Bus.dead` is empty, and then all scdc blocks have one
+floor and all dio blocks another (`floor_hash`; boulders differ between open and closed SCDs, the router ignores
+them). `Bus.dead` was empty on all 320 instances of seeds 3 and 11; the generator asserts it (`template_for`), so an
+instance with a dangling SCD tunnel stops with an error, never with a silently wrong level. **Lemma Mono** covers that
+case without any search: deleting a straight stub (floor cells and links that are not slots, windows, locations,
+stubs or wires of any G′) from a block with a valid routed template leaves a valid template: every chain point stays
+non-floor, each former crossing of the deleted stub becomes a plain chain step, and every validator condition (on the
+remaining floor points, the tile slots, the time-ordered GX/contact rules) is unchanged or vacuous. (STRONG; L_gen
+asserts instead of implementing the restriction.)
+
+So the check path needs exactly **12 templates**: scdc and dio, each in 2 parities, and the 4 crossover flips in 2
+parities. They were routed once (the router's search, deadlines and strategy order are irrelevant to the reduction:
+only their output is used), stored with their floor hash, and each is verified by the independent replay `validate`
++ `validate_rules` (P1-P4 by time order) and by `L_e2e.py` (every G′ rebuilt with its crossings: c_out reachable ⇔
+clean). Blocks without tiles carry only the two lanes, and `_block_template` asserts for every one of them that each
+lane row meets only CORR floor, perpendicularly, away from every halo; for E, V, H, BL, BR, coin this is one finite
+check each, and for jn (bar comb, §10.1) the lane rows 2 and P − 3 meet only the n vertical teeth for every n, since
+the bar and the tile body lie in rows P − 16 .. P − 14 and the teeth are straight.
+
+**Theorem L (uniform polynomial assembly).** Given a G6 instance of size N, `assemble` computes the level (main layer +
+check-path curve + crossing list) in time polynomial in N, without search, and the output satisfies P1-P4 and the
+coverage condition whenever the 12 library templates do.
+*Proof.* Steps and bounds (E = #route edges, T = #tiles; E, T = O(N) after `contract`):
+1. netlist + contraction: linear in the arena (review5_t1's `build`, O(N) gadgets).
+2. `Bus.order`: DFS, then 80 barycentre sweeps with a FIXED seed (deterministic), then adjacent-swap descent; each
+   accepted swap lowers the interleaving count, which is ≤ E², so ≤ E² rounds of T swaps, each scored in O(E²):
+   O(E⁵) worst case. Any order is correct (crossings = interleaving pairs, each realized by one crossover block);
+   only the size depends on its quality.
+3. `Bus.rows`: greedy track assignment O(E³); crossings listed O(E²·T).
+4. Macro grid: C ≤ 2E + T columns, R ≤ E rows; each macro cell gets a block by table lookup (crossover flip from the
+   two edge directions, corner kinds from the edge ends). Concrete size ((C + 2)·P) × ((R + 1)·P + 8) cells, P = 587.
+5. Check path: for each block in boustrophedon order, its library template (or the two lanes) is placed by
+   translation; the lanes of neighbouring blocks meet at the shared border rows 2 and P − 3; the margins (columns
+   −1 and C) carry the hairpins and the descent t → bottom strip by a fixed rule. Output size O(C·R·|template|).
+Composition: a template's chain stays inside its block except the two lanes, and its crossings are of its own
+block's floor; GX permission (P4) refers only to legs of the block's own tiles. In the global Lemma 5.6 order all
+level-1 excursions precede all level-2 excursions, and the excursions of one block at one level are consecutive and
+in the template's tile order, so the time order restricted to any block equals the template's own time order, and
+`validate_rules` on the template implies P1-P4 in the glued level. Lane crossings are CHX on plain corridor floor
+(never a slot, window, location, coin cell or halo point, asserted). Coverage (every SCD / component has its G′, every
+leg Wt = Wb = 1) is additive over blocks (`coverage_ok`). ∎
+What is still not drawn is the box redraw (every crossing point blown up into its constant-size machinery board by
+inserting rows and columns): a polynomial, search-free standard step (#boards ≤ #events, each ≤ 478 × 608 cells),
+STRONG, not implemented (§7.1, F3 below).
+
+**F3 by the same blow-up (Z1 after the redraw).** Inserting k rows (columns) at a crossing point p moves every cell
+beyond p by k and puts the board into the inserted strip, so for any original cell c and any cell b of p's board,
+Chebyshev(c, b) ≥ Chebyshev(c, p) in original coordinates. Windows exist only in boards and in the component windows
+of the main layer. The router keeps every chain point (hence every crossing point) out of the Chebyshev-4 halo of
+Z ∪ {E}, and the coin block carries no G′, only the two lanes, which cross the coin block's stubs in row 2 (≥ 550 rows
+from Z) and nothing in row P − 3. Hence after the redraw no board window lies within Chebyshev 3 of Z ∪ {E}: Z1's
+sufficient rule holds in redrawn coordinates. (STRONG; the exact per-window reach of the boards, C-audit Z1 step 1,
+then follows as for the main-layer windows because every board window is ≥ 4 cells from Z ∪ {E}.)
