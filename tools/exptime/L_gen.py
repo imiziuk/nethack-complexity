@@ -2000,7 +2000,15 @@ def _block_template(b, parity, coin, xe, strat):
             kt = set(os.environ['LGEN_L1_KEEP_TILES'].split(','))
             Rt.keep_slots = True
             keep = Rt.keepout_l1([G for G in Gl[1] if G['tile'] in kt])
+        if first == 1 and os.environ.get('LGEN_L2_KEEP', '0') == '1':
+            # r6b: l1first with the mirror keep-out -- slot side points and box spots of every level-2 G' reserved
+            # while the level-1 curve is drawn, released before level 2
+            Rt.keep_slots = True
+            keep = Rt.keepout_l1(Gl[2])
         for lv in (first, 3 - first):
+            if lv == 3 - first and first == 1:
+                for t in keep:                  # release the level-2 keep-out before the level-2 curve is drawn
+                    Rt.res[t] = 0
             if lv == 1:
                 for t in keep:                  # release the level-1 keep-out before the level-1 curve is drawn
                     Rt.res[t] = 0

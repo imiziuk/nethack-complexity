@@ -300,6 +300,36 @@ P, and re-route all 8 flips.
 - New crossover: `X_build` seed 2: **556 × 560**, 66 tiles, 166 boulders (77 s); macro pitch **P = 587, MID = 293**
   (smallest odd P with the old 4-cell margin under every flip).
 
+### 10.2 Results (2026-10-31 / 11-01; Windows, 12 cores, 5 jobs at below-normal priority; deadline-bound, so times depend on load)
+
+| Check | Result |
+|---|---|
+| r6a reproduction (`XB_SCD_GEOM=r6a`) vs round-1 `X_build` | identical cells / owners / ports, variants 0-2; r5 identity (0, 2, 0, r6a) still holds |
+| `check_tile_spacing`, `check_tile_legs` (r6b tile, variants 0-2) | pass; tile 35 × 55 (v0, v2), 37 × 61 (v1) |
+| crossover rebuilt (`X_build`, seed 2) | 556 × 560, 66 tiles, 166 boulders, all map checks pass |
+| `X_verify.py --moves 100000` | ALL AS EXPECTED (network SOUND + COMPLETE, SCD tile 12 clean SOUND/COMPLETE, diode 2 clean, c2 100,000 moves) |
+| `review5_abc.py`, `review5_cd.py` | v2 tile PASSES (clean set 3, broken absorbing, SOUND True); v2 diode checks split |
+| jn bar comb, n = 1, 2, 3, 13, 600 | `check_block`, `check_tile_block`, lane assertion pass; `--s1` (20 instances) S1 = S2 = G6 |
+| library tile templates (P = 587) | dio 0 / 1 and scdc 0 routed by `l2first` (35 s, 1 s, 142 s); scdc 1: `l2first` FAILED (level 1, tile.J Wt, 1,683 s), `l1first` routed (139 s); all four `validate` ok, `validate_rules` no errors (scdc 0: 14 checks, GX 8; scdc 1: 14 checks, GX 3) |
+| `L_e2e.py tiles` (library templates) | ALL AS EXPECTED: repaired 12/12 G′ exact; no delimiters 12/12 not exact; old GX rule + Ani placement 4 not exact (pd 2 → 3); review-6 HK + old rule 10 not exact; diode game repaired LOSE/WIN, review-6 WIN/WIN |
+| block-template keys over 320 instances (seeds 3, 11) | G′-carrying: only scdc 4P and dio 2P with all arms (2 parities each); `Bus.dead` = 0 |
+| `L_lua.py 3 0` (F5) | window of inst3_0 (row 0, start .. coin; 85,708 × 587 map, 97 boulders, 1 teleport trap): lint OK; 6 negative controls (noteleport, second teleport_region, unseen trap, implicit BUC, loop, no pocket) all caught |
+| crossover template 000 (`l2first`) | **routed**, 10,064 s; validate ok, rules clean (372 checks, 68 GX all on finished legs, 536 wire SX) |
+| 001, 010, 011, 100, 101, 110, 111 (`l2first`) | **FAILED**: level 2 routes (126 G′), then level 1 cannot finish one SCD: 001 g029 tile.J Wb; 010 g018 tile.J Wb; 100 g028 tile.J Wb; 101 g055 tile.O Wb; 110 g034 SO wire of check I→J at J; 111 g029 tile.O Wt; 011 g052 tile.J Wt (011 routed in round 1 only because the crossover stubs were mis-typed, §10.1) (records `build/lgen/r6b_fail_l2first_*.json`) |
+| `l1first` (001, 010) / `l1first` + level-2 keep-out `LGEN_L2_KEEP=1` (111) | level 1 routes in 210-250 s, then level 2 makes no progress (≥ 20-50 min on its first tile); stopped |
+| `LGEN_L1_KEEP=1` (box-spot keep-out, all SCDs) | stopped after ~1 h for time |
+| targeted keep-out `LGEN_L1_KEEP_TILES` (slot sides + box spots of the failing SCD only) | 110:g034 FAILED again (same SO wire at J, 9,397 s); 001, 100, 101, 010 still running at the time of writing (see the status file) |
+| `L_e2e.py xtemplates`, `--run 20 3`, fresh seed, `review6_*` on the full level | **not run**: need all 8 crossover templates |
+
+**Diagnosis after round 2.** The tile-leg stubs fixed flip 000 and moved the failures from "both O and J" towards
+mostly tile.J, but under the repaired rules the router still cannot draw level 1 around one SCD per flip after the
+level-2 curve is drawn, and level 2 cannot be drawn after level 1. In every failure the stuck SCD is a different
+tile than in round 1, and variants 0 and 2 both occur (g018 v0 s3, g029 v0 s7, g028 v2 s7, g034 v2 s2, g055 v2 s0),
+so it is a property of the drawing order and the crowded crossover neighbourhood, not of one tile variant. Candidates
+for round 3: (a) a rip-up step in `l2first` (when level 1 is stuck at SCD g, undo the level-2 G′s of g's own four
+components, route g's level-1 G′, then re-route those four; their time order is unchanged); (b) a larger SCD_TV (5-6)
+plus more room between the tile legs and the crossover corridors (`X_build` scale), then rebuild and re-route.
+
 ### 10.3 Constructive layout argument (review 6 F4) — STRONG
 
 Review 6 F4: polynomial time rested on a router with deadlines, budgets and rewinds that may fail on a new
@@ -334,7 +364,9 @@ the bar and the tile body lie in rows P − 16 .. P − 14 and the teeth are str
 
 **Theorem L (uniform polynomial assembly).** Given a G6 instance of size N, `assemble` computes the level (main layer +
 check-path curve + crossing list) in time polynomial in N, without search, and the output satisfies P1-P4 and the
-coverage condition whenever the 12 library templates do.
+coverage condition whenever the 12 library templates do. (State 2026-11-01: 5 of the 12 exist and are verified,
+the 4 tile templates and crossover 000; the other 7 crossover flips are not routed, §10.2, so Theorem L is
+conditional on them.)
 *Proof.* Steps and bounds (E = #route edges, T = #tiles; E, T = O(N) after `contract`):
 1. netlist + contraction: linear in the arena (review5_t1's `build`, O(N) gadgets).
 2. `Bus.order`: DFS, then 80 barycentre sweeps with a FIXED seed (deterministic), then adjacent-swap descent; each
