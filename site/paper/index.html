@@ -41,7 +41,7 @@
   <ol><li><a href="#clock">5.1 The hunger clock, rule S</a></li><li><a href="#on-member">5.2 Membership</a></li><li><a href="#gadgets">5.3 Source problem and gadgets</a></li><li><a href="#layout">5.4 Global layout</a></li><li><a href="#on-correct">5.5 Correctness</a></li></ol></li>
 <li><a href="#variants">6 Variants</a></li>
 <li><a href="#evidence">7 Evidence</a></li>
-<li><a href="#open">8 Limitations and open problems</a></li>
+<li><a href="#open">8 Limitations, open problems and future work</a></li>
 <li><a href="#refs">References</a></li>
 <li><a href="#appA">A Source-line index</a> · <a href="#appB">B Withdrawn claims</a></li>
 </ol>
@@ -2030,7 +2030,7 @@ nh.debug_flags({ mongen = false, hunger = false });</code></pre>
 
 <!-- ======================================================= 8 -->
 <section id="open" class="lv">
-<div class="sec-head"><h2><span class="sn">8</span>Limitations and open problems</h2><div class="seg sm local" role="group" aria-label="Reading depth for 8 Limitations and open problems"><button type="button" data-d="1">Overview</button><button type="button" data-d="2">Explained</button><button type="button" data-d="3">Full</button></div></div>
+<div class="sec-head"><h2><span class="sn">8</span>Limitations, open problems and future work</h2><div class="seg sm local" role="group" aria-label="Reading depth for 8 Limitations, open problems and future work"><button type="button" data-d="1">Overview</button><button type="button" data-d="2">Explained</button><button type="button" data-d="3">Full</button></div></div>
 <p class="oneline" data-dm="1">The weakest points: one check against the Push-1F figures, a source-problem statement read only in restatements, four unfinished checker runs, and no full reduction output run in the game. Levels without the Sokoban flag are an open problem.</p>
 <p data-dm="2">Weakest points first.</p>
 <ol data-dm="2">
@@ -2044,7 +2044,19 @@ nh.debug_flags({ mongen = false, hunger = false });</code></pre>
 <li><b>Lean scope.</b> Only the movement step is formal; the projection and invariants I1&ndash;I9 are trusted.</li>
 <li><b>Model assumptions.</b> Rule S, fixed external inputs, and the whitelist are choices; Section 6 shows how the answer moves without them.</li>
 </ol>
-<p data-dm="2"><b>Open problems.</b> The exact class under R3 (NP or PSPACE-complete?). Whether unrestricted objects leave PSPACE, and whether anything is EXPTIME-hard. Whether walls and boulders alone admit a crossover (which would remove holes from the NP reduction). Whether unbounded integers make the problem undecidable. <b>Plain levels without the Sokoban flag:</b> every instance here carries the flag; without it the hero may push boulders diagonally, step diagonally past a boulder between it and a wall, and, when carrying little, squeeze onto a boulder's square, so the push model of Section 3 no longer applies. We know no result for such levels.</p>
+<p data-dm="2"><b>Open problems.</b> The exact class under R3 (NP or PSPACE-complete?). Whether unrestricted objects leave PSPACE. Whether anything is EXPTIME-hard: we conjecture yes for L<sub>OFF</sub><sup>W+C</sup> under R3 and have most of a construction (<a href="exptime.html">EXPTIME page</a>), but it is not finished. Whether walls and boulders alone admit a crossover (which would remove holes from the NP reduction). Whether unbounded integers make the problem undecidable. <b>Plain levels without the Sokoban flag:</b> every instance here carries the flag; without it the hero may push boulders diagonally, step diagonally past a boulder between it and a wall, and, when carrying little, squeeze onto a boulder's square, so the push model of Section 3 no longer applies. We know no result for such levels.</p>
+<h3 id="future" data-dm="1">Future work</h3>
+<p data-dm="1">In order of priority:</p>
+<ol data-dm="1">
+<li><b>Finish EXPTIME-hardness.</b> Route the last 7 of the 8 crossover pieces of the template library (a router that can undo and redo the wires around a stuck piece), run the full-level tests, and have the construction independently re-reviewed. If it passes, L<sub>OFF</sub><sup>W+C</sup> becomes EXPTIME-complete (STRONG).</li>
+<li><b>Run a full reduction in the real game.</b> Build NetHack with a larger map (COLNO, ROWNO) and play a complete generated level end to end, for both the PSPACE and the EXPTIME constructions.</li>
+<li><b>Close the weakest points:</b> check Lemma 4.7(c) against Ani et al.'s figures, finish the four unsatisfiable levels, and trace the remaining command handlers in full.</li>
+<li><b>Formalize more in Lean.</b> Extend the proof assistant check from the movement step to the projection and the invariants I1&ndash;I9.</li>
+<li><b>Plain levels.</b> Model diagonal pushing and squeezing so the results cover levels without the Sokoban flag.</li>
+<li><b>A walls-and-boulders crossover or one-way door.</b> Either would remove holes from the NP reduction and most of the EXPTIME check machinery; an exhaustive search of about 1.4 million small boards found none.</li>
+<li><b>Monsters and randomness.</b> Ask how hard it is to reach the goal with a given probability once monsters and random events are back in.</li>
+<li><b>Peer review.</b> Write the results up for a conference or journal.</li>
+</ol>
 </section>
 
 <!-- ======================================================= REFS -->
