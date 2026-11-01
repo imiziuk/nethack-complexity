@@ -13,9 +13,8 @@
 - Crossover templates: only xtemplate_r6_000.json (l2first). All other 7 flips FAILED under l2first at level 1
   (records build/lgen/r6b_fail_l2first_*.json). l1first / l1first+LGEN_L2_KEEP: level 2 stalls. Targeted keep-out
   LGEN_L1_KEEP_TILES failed for 110:g034.
-- Still running when this was written (below-normal, nohup; logs build/lgen/r6b_t_x{001,010,100,101}.log,
-  targeted keep-out 001:g029 010:g018 100:g028 101:g055). If one finishes with validate ok it writes
-  build/lgen/xtemplate_r6_<f>.json. Kill them with: python -c "import psutil;[p.kill() for p in psutil.process_iter(['cmdline']) if 'xblock' in ' '.join(p.info['cmdline'] or [])]"
+- Targeted keep-out LGEN_L1_KEEP_TILES also FAILED for 101:g055 (same slot); 001, 010, 100 runs were stopped
+  unfinished. No jobs are left running.
 - Blocked on all 8: stamp floor_hash into each xtemplate (rec['floor_hash'] = L_gen.floor_hash(L_gen.x_block(fx, fy)));
   `python L_e2e.py xtemplates`; `python L_gen.py --run 20 3` + one fresh seed; review6_weak --generated,
   review6_hooks, review6_hooks2 on the new templates.

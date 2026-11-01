@@ -318,7 +318,7 @@ P, and re-route all 8 flips.
 | 001, 010, 011, 100, 101, 110, 111 (`l2first`) | **FAILED**: level 2 routes (126 G′), then level 1 cannot finish one SCD: 001 g029 tile.J Wb; 010 g018 tile.J Wb; 100 g028 tile.J Wb; 101 g055 tile.O Wb; 110 g034 SO wire of check I→J at J; 111 g029 tile.O Wt; 011 g052 tile.J Wt (011 routed in round 1 only because the crossover stubs were mis-typed, §10.1) (records `build/lgen/r6b_fail_l2first_*.json`) |
 | `l1first` (001, 010) / `l1first` + level-2 keep-out `LGEN_L2_KEEP=1` (111) | level 1 routes in 210-250 s, then level 2 makes no progress (≥ 20-50 min on its first tile); stopped |
 | `LGEN_L1_KEEP=1` (box-spot keep-out, all SCDs) | stopped after ~1 h for time |
-| targeted keep-out `LGEN_L1_KEEP_TILES` (slot sides + box spots of the failing SCD only) | 110:g034 FAILED again (same SO wire at J, 9,397 s); 001, 100, 101, 010 still running at the time of writing (see the status file) |
+| targeted keep-out `LGEN_L1_KEEP_TILES` (slot sides + box spots of the failing SCD only) | 110:g034 and 101:g055 FAILED again at the same SCD and slot (9,397 s / 15,743 s); 001, 100, 010 stopped unfinished (1-4 h in, no result) to free the shared laptop |
 | `L_e2e.py xtemplates`, `--run 20 3`, fresh seed, `review6_*` on the full level | **not run**: need all 8 crossover templates |
 
 **Diagnosis after round 2.** The tile-leg stubs fixed flip 000 and moved the failures from "both O and J" towards
